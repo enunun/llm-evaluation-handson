@@ -18,10 +18,10 @@
 
 ## 作業中：Iteration 2
 
-- [ ] Iteration 1の解答を演習と解答にコピーし，パッケージ名を変える
-- [ ] 解答に`simple-statistics`と`@stdlib/stats-binomial-test`を加える
-- [ ] 単体テストを先に書き，失敗を確かめる(`stats`，`summary`，`report`，`cli`の`--target`と`--confidence`)
-- [ ] 解答の実装と統合テスト
+- [x] Iteration 1の解答を演習と解答にコピーし，パッケージ名を変える
+- [x] 解答に`simple-statistics`，`@stdlib/stats-binomial-test`，`@stdlib/stats-base-dists-normal-quantile`を加える(`simple-statistics`の`probit`は近似の精度が低いため，正規分布の分位点はstdlibを使う)
+- [x] 単体テストを先に書き，失敗を確かめる(`stats`，`summary`，`report`，`cli`の`--target`と`--confidence`)
+- [x] 解答の実装と統合テスト
 - [ ] 設計文書(モジュール依存図，型，ADR 0003)
 - [ ] 解答と演習の`TESTLIST.md`，`README.md`，`docs/iteration-2.md`，ノート
 - [ ] Ollama(qwen2.5:0.5b)での実行結果を取る
