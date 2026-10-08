@@ -1,6 +1,10 @@
 {
 	"config": {
-		"default": true
+		"default": true,
+		// 和文は空白で折り返せないため，行の長さは検査しない．
+		"MD013": false,
+		// Iterationごとに同じ小見出し(要求，使用例など)を繰り返すため，兄弟の見出しだけを比べる．
+		"MD024": { "siblings_only": true }
 	},
 	"globs": [
 		"**/*.md"

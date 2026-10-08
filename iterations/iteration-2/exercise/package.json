@@ -1,0 +1,18 @@
+{
+  "name": "@handson/iteration-2-exercise",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "typecheck": "tsc -p tsconfig.json",
+    "eval": "PROMPTFOO_FAILED_TEST_EXIT_CODE=0 promptfoo eval -c promptfooconfig.yaml --no-cache --no-progress-bar --no-table",
+    "evalstats": "node src/cli.ts"
+  },
+  "dependencies": {
+    "@stdlib/random-base-mt19937": "0.2.3",
+    "ollama": "0.6.3",
+    "zod": "4.6.5"
+  }
+}

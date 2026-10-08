@@ -1,20 +1,31 @@
 {
-  "name": "workspaces",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "llm-evaluation-handson",
+  "private": true,
+  "description": "生成AIプロダクトの品質評価ハンズオン",
+  "license": "MIT",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "fmt": "oxfmt .",
+    "lint:code": "oxlint --type-aware --deny-warnings",
+    "lint:fmt": "oxfmt --check .",
     "lint:text": "git ls-files '*.md' -z | xargs -0 -r textlint",
     "lint:markdown": "git ls-files '*.md' -z | xargs -0 -r markdownlint-cli2",
-    "lint": "pnpm run lint:text && pnpm run lint:markdown"
+    "lint:mermaid": "node scripts/check-mermaid.mjs",
+    "lint:design": "node scripts/check-design.mjs",
+    "lint": "pnpm run lint:code && pnpm run lint:fmt && pnpm run lint:text && pnpm run lint:markdown && pnpm run lint:mermaid && pnpm run lint:design",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@textlint-ja/textlint-rule-preset-ai-writing": "^1.7.0",
+    "@types/node": "^26.0.0",
+    "jsdom": "30.1.1",
     "markdownlint-cli2": "^0.23.3",
+    "mermaid": "12.0.0",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "oxlint-tsgolint": "7.0.2002",
+    "promptfoo": "0.123.1",
     "textlint": "^15.8.0",
     "textlint-filter-rule-comments": "^1.3.0",
     "textlint-plugin-mdx": "^1.1.0",
@@ -22,6 +33,8 @@
     "textlint-rule-ja-space-between-half-and-full-width": "^3.0.3",
     "textlint-rule-preset-ja-spacing": "^3.0.3",
     "textlint-rule-preset-ja-technical-writing": "^12.0.2",
-    "textlint-rule-prh": "^6.1.0"
+    "textlint-rule-prh": "^6.1.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
   }
 }

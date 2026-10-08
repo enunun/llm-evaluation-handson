@@ -1,3 +1,7 @@
+# <!-- textlint-disable --> と <!-- textlint-enable --> で囲んだ部分は検査しない(モデルの出力の引用など)．
+filters:
+  comments: true
+
 plugins:
   '@textlint/markdown': true
 
@@ -22,6 +26,14 @@ rules:
 
     ja-no-mixed-period:
       periodMark: '．'
+
+    # 評価の指標名に含まれる1文字の変数は，不自然なアルファベットとして扱わない．
+    ja-unnatural-alphabet:
+      allow:
+        - '/pass\^k/'
+        - '/pass@k/'
+        - '/pass\^\d+/'
+        - '/pass@\d+/'
 
   # 和文の中のコロンを全角にし，読点と句点を「，」と「．」にする．辞書は.textlint-prh.ymlに書く．
   prh:

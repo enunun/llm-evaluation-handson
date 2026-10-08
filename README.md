@@ -1,54 +1,59 @@
-# claude-docker-template
+# 生成AIプロダクトの品質評価ハンズオン
 
-Claude Code for VSCode + Docker(mise) + rtkで開発するときの，最小構成のテンプレート．
-言語や作るものは特に決めず，devcontainer・mise・rtk・lefthookの土台だけを提供する．
+生成AIの出力は，同じ入力でも毎回変わる．
+このハンズオンでは，この非決定性に正面から向き合い，「たまたま通った」ではなく根拠のある数字で品質を語れるようになることを目指す．
 
-## 構成
+カスタマーサポート向けの小さなLLM機能(問い合わせの分類と返信の下書き)を作り，[promptfoo](https://github.com/promptfoo/promptfoo)で評価し，その結果を分析するCLI`evalstats`を6つのIterationで育てる．
+各Iterationは，テストリスト，設計文書，テスト駆動の実装，設計の見直しの順に進める．
 
-``` text
-.devcontainer/
-  devcontainer.json  VSCode Dev Containersの設定．claude-home/rtk-homeを
-                      ホストにバインドマウントし，資格情報や履歴をコンテナの
-                      再作成後も保つ．
-  Dockerfile          mise公式イメージをベースに，rtk/lefthookをmiseで入れる．
-                      プロジェクト固有のパッケージ・ツールチェーンはここに追加する．
-  compose.yml         コンテナを起動したままにする(sleep infinity)だけの設定．
-.claude/
-  settings.json        Bashツール呼び出しをrtk経由に書き換えるフック．
-                        enunun/system-development-skillsを参照するプラグイン設定も含む．
-.rtk/
-  filters.toml          プロジェクト固有のrtkフィルタ(雛形のみ)．
-mise.toml               ツールの版とタスク(install/fmt/lint/test/check/setup)の雛形．
-lefthook.yml             コミット時の検査の雛形．
-CLAUDE.md                プロジェクト向けのClaude Code指示の雛形．
-.gitignore
-```
+## 学べること
 
-## 使い方
+- 同じタスクを複数回試行し，合格率，pass^k，標準誤差，信頼区間で品質を表す．
+- 評価のスイートと採点器(コード，LLM Judge，意思決定モデル)を設計し，モデル型の採点器を人手ラベルで検証する．
+- 2つの版を対応のある差で比べ，回帰をCIのゲートで止める．
+- 何を測るかを，QA4AIのガイドラインとISO/IEC 25059の品質特性に沿って整理する．
 
-1. このフォルダの中身を，新しいプロジェクトのリポジトリのルートにコピーする．
-2. `PROJECT_NAME`という文字列を，プロジェクト名に置き換える(`devcontainer.json`，`compose.yml`，`CLAUDE.md`)．
-3. `mise.toml`の`[tools]`に，プロジェクトが使う言語・ツールを追加する．
-4. `mise.toml`の各タスク(`install`/`fmt`/`lint`/`test`)と，`lefthook.yml`の`format`コマンドを，実際のコマンドに置き換える．
-5. `Dockerfile`に，プロジェクトのビルドに必要なシステムパッケージがあれば追加する．
-6. VSCodeで「Reopen in Container」を実行する．初回は`mise run setup`が走る．
-7. `.gitignore`から`pnpm-lock.yaml`を削除し，lockファイルがコミットされるようにする．
-8. `mise.toml`の`[settings]`と`lockfile = true`の行のコメントを解除し，lockファイルを使用するようにする．
+## 前提
 
-## rtk(Rust Token Killer)について
+- プログラミングと単体テストの経験があり，TypeScriptを読み書きできる．
+- LLMのAPIを呼ぶアプリを作ったことがある．
+- Docker，VS Code，Dev Containers拡張が使える．
 
-シェルコマンドの出力を絞り込み，トークン消費を抑えるCLIプロキシ．
-`.claude/settings.json`のフックが，Claude CodeのBashツール呼び出しを自動的に`rtk`経由に書き換える．
-コマンドの詳しい対応表は[rtkのリポジトリ](https://github.com/rtk-ai/rtk)を参照．
-`~/.claude/CLAUDE.md`からrtkの使い方を読み込ませておくと，全プロジェクトで効く．
+## 始め方
 
-## 共有スキルについて
+1. このリポジトリをクローンし，VS Codeで開く．
+2. コマンドパレットで「Dev Containers: Reopen in Container」を実行する．初回は`mise run setup`が依存パッケージを入れる．
+3. コンテナの中のターミナルで，リポジトリ全体を検証し，環境が動くことを確かめる．
 
-`.claude/settings.json`は，[enunun/system-development-skills](https://github.com/enunun/system-development-skills)をプラグインのマーケットプレイスとして参照する設定を含む．成果物を仕上げる`finalize-artifacts`スキルなど，プロジェクトを問わず使うスキルはそちらに集約されている．
+   ```console
+   mise run check
+   ```
 
-## claude-home / rtk-home について
+4. Ollamaにモデルを取得する(数GBあり，初回は時間がかかる)．Ollamaを使わなくても，偽のLLMでコースを最後まで進められる．
 
-`.devcontainer/claude-home/`と`.devcontainer/rtk-home/`は，コンテナ作成時に
-`initializeCommand`が自動生成し，
-コンテナ内の`/root/.claude`や`/root/.config/rtk`などにバインドマウントされる．
-資格情報や履歴を含むため，`.gitignore`で除外している．
+   ```console
+   mise run ollama:pull
+   mise run ollama:status
+   ```
+
+`mise tasks`で，使えるタスクを一覧できる．
+
+## Iteration
+
+| Iteration | 内容 | 演習 | 解答 |
+| --- | --- | --- | --- |
+| 0 | 問い合わせの分類をpromptfooで1回評価し，タスクごとの合否を表示する | [exercise](iterations/iteration-0/exercise) | [solution](iterations/iteration-0/solution) |
+| 1 | 各タスクを複数回試行し，合格率，pass^k，揺れを集計する | [exercise](iterations/iteration-1/exercise) | [solution](iterations/iteration-1/solution) |
+| 2 | 合格率に標準誤差と信頼区間を付け，目標と比べる | [exercise](iterations/iteration-2/exercise) | [solution](iterations/iteration-2/solution) |
+| 3 | 返信の下書きを，コードの採点器，LLM Judge，意思決定モデルで採点する | [exercise](iterations/iteration-3/exercise) | [solution](iterations/iteration-3/solution) |
+| 4 | モデル型の採点器を人手ラベルで検証し，合格率を補正する | [exercise](iterations/iteration-4/exercise) | [solution](iterations/iteration-4/solution) |
+| 5 | 2つの実行結果を比較し，回帰をゲートで止める | [exercise](iterations/iteration-5/exercise) | [solution](iterations/iteration-5/solution) |
+
+各Iterationの要求と学ぶことは[ロードマップ](docs/ROADMAP.md)にある．
+
+## 案内
+
+- [ロードマップ](docs/ROADMAP.md)：各Iterationで作るもの，学ぶこと，拠り所にする指針．
+- [テスト駆動開発の進め方](docs/tdd.md)：Red → Green → Refactor，テストリストの書き方，単体テストと統合テスト．
+- [設計文書の書き方](docs/design.md)：モジュール依存図，型，ADR．
+- [ノート](docs/notes/README.md)：各Iterationで初めて使う概念，ツール，構文．
