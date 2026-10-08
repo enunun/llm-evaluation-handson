@@ -1,0 +1,234 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: labels
+
+# 人手ラベルのスイート．返信と，採点器ごとの人の判定(human)と，dev/testの分割(split)を持つ．
+# プロバイダは返信をそのまま出力にし，採点器だけを動かす．
+prompts:
+  - "{{reply}}"
+
+providers:
+  - id: file://src/labelProvider.ts
+
+tests:
+  - description: label-01
+    vars:
+      inquiry: 注文した本がまだ届きません．
+      reply: "ご不便をおかけし申し訳ございません．ご注文の商品は通常3営業日以内に発送いたします．配送状況は注文履歴からご確認いただけます．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): pass
+    # 採点器は，promptfooconfig.yamlの返信のタスクと同じ設定にする．
+    assert: &graders
+      - type: javascript
+        value: file://src/judgeAssertion.ts
+        metric: judge:polite (QC01-4)
+        config:
+          rubric: 返信が，お客様に対する丁寧な言葉遣い(敬語)で書かれているか．
+          judge:
+            llm: fake
+            model: qwen2.5:3b
+            seed: 1
+            noise: 0.1
+      - type: javascript
+        value: file://src/decisionAssertion.ts
+        metric: decision:answers (QC01-1)
+        config:
+          instructions: Does the reply answer the customer's inquiry?
+          threshold: 0.5
+          model:
+            llm: fake
+            model: tev1
+            seed: 1
+            noise: 0.3
+  - description: label-02
+    vars:
+      inquiry: 注文した本がまだ届きません．
+      reply: "注文履歴見て．3日以内に送るから．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-03
+    vars:
+      inquiry: 注文した本がまだ届きません．
+      reply: "お問い合わせいただきありがとうございます．ただいま新商品のセールを実施中です．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): fail
+    assert: *graders
+  - description: label-04
+    vars:
+      inquiry: 注文した本がまだ届きません．
+      reply: "知らない．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): fail
+    assert: *graders
+  - description: label-05
+    vars:
+      inquiry: 靴を返品して返金してほしいです．
+      reply: "返品のご希望を承りました．商品の到着から30日以内で未使用の場合，担当部署が確認のうえご連絡いたします．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-06
+    vars:
+      inquiry: 靴を返品して返金してほしいです．
+      reply: "返金は30日以内．未使用のみ．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-07
+    vars:
+      inquiry: 靴を返品して返金してほしいです．
+      reply: "返金：商品の到着から30日以内で，未使用の場合に受け付ける．配送：通常は注文から3営業日以内に発送する．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-08
+    vars:
+      inquiry: 靴を返品して返金してほしいです．
+      reply: "いつもご利用いただきありがとうございます．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): fail
+    assert: *graders
+  - description: label-09
+    vars:
+      inquiry: パスワードを忘れてログインできません．
+      reply: "パスワードは，ログイン画面の「パスワードを忘れた方」から再設定いただけます．ご不明な点がございましたらお知らせください．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-10
+    vars:
+      inquiry: パスワードを忘れてログインできません．
+      reply: "ログイン画面から自分でやって．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-11
+    vars:
+      inquiry: パスワードを忘れてログインできません．
+      reply: "お手数をおかけしております．担当者より改めてご連絡いたします．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): fail
+    assert: *graders
+  - description: label-12
+    vars:
+      inquiry: パスワードを忘れてログインできません．
+      reply: "は？"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): fail
+    assert: *graders
+  - description: label-13
+    vars:
+      inquiry: 店舗の営業時間を教えてください．
+      reply: "恐れ入りますが，店舗の営業時間は担当者が確認のうえ，改めてご連絡いたします．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): fail
+    assert: *graders
+  - description: label-14
+    vars:
+      inquiry: 店舗の営業時間を教えてください．
+      reply: "店舗は10時から20時まで営業しております．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-15
+    vars:
+      inquiry: 届いた服の色が写真と違うので，交換してほしいです．
+      reply: "ご迷惑をおかけし申し訳ございません．交換をご希望の場合，商品の到着から30日以内で未使用であれば，担当部署が確認のうえご連絡いたします．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-16
+    vars:
+      inquiry: 届いた服の色が写真と違うので，交換してほしいです．
+      reply: "色の違いは仕様です．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-17
+    vars:
+      inquiry: 同じ注文で2回請求されています．
+      reply: "二重請求の件，確認します．"
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-18
+    vars:
+      inquiry: 同じ注文で2回請求されています．
+      reply: "大変申し訳ございません．二重のご請求について担当部署が確認し，返金の可否をご連絡いたします．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-19
+    vars:
+      inquiry: 注文した本がまだ届きません．
+      reply: "Thank you for your inquiry. We will ship your order within 3 business days."
+    metadata:
+      split: dev
+      human:
+        judge:polite (QC01-4): fail
+        decision:answers (QC01-1): pass
+    assert: *graders
+  - description: label-20
+    vars:
+      inquiry: ポイントが付与されていません．
+      reply: "ポイントについてのお問い合わせ，誠にありがとうございます．"
+    metadata:
+      split: test
+      human:
+        judge:polite (QC01-4): pass
+        decision:answers (QC01-1): fail
+    assert: *graders

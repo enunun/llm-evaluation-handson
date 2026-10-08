@@ -1,0 +1,180 @@
+import { describe, expect, it } from "vitest";
+import { seededRandom } from "../../src/random.ts";
+import {
+  binomialInterval,
+  bootstrapInterval,
+  judgeTarget,
+  meanWithError,
+  minimumDetectableEffect,
+  pairedDifference,
+} from "../../src/stats.ts";
+
+describe("binomialInterval", () => {
+  it("10回中10回の合格でも，区間の下限は1より小さい", () => {
+    const interval = binomialInterval(10, 10, 0.95);
+    expect(interval.lower).toBeCloseTo(0.6915, 4);
+    expect(interval.upper).toBe(1);
+  });
+
+  it("10回中7回の合格では，Clopper-Pearson法の区間を返す", () => {
+    const interval = binomialInterval(7, 10, 0.95);
+    expect(interval.lower).toBeCloseTo(0.3475, 4);
+    expect(interval.upper).toBeCloseTo(0.9333, 4);
+  });
+
+  it("10回中0回の合格でも，区間の上限は0より大きい", () => {
+    const interval = binomialInterval(0, 10, 0.95);
+    expect(interval.lower).toBe(0);
+    expect(interval.upper).toBeCloseTo(0.3085, 4);
+  });
+
+  it("信頼水準を下げると，区間は狭くなる", () => {
+    const wide = binomialInterval(7, 10, 0.95);
+    const narrow = binomialInterval(7, 10, 0.8);
+    expect(narrow.upper - narrow.lower).toBeLessThan(wide.upper - wide.lower);
+  });
+
+  it("試行を増やすと，区間は狭くなる", () => {
+    const few = binomialInterval(7, 10, 0.95);
+    const many = binomialInterval(70, 100, 0.95);
+    expect(many.upper - many.lower).toBeLessThan(few.upper - few.lower);
+  });
+
+  it("試行が0回ならエラーにする", () => {
+    expect(() => binomialInterval(0, 0, 0.95)).toThrow(RangeError);
+  });
+});
+
+describe("meanWithError", () => {
+  it("平均を求める", () => {
+    expect(meanWithError([0.4, 0.6, 0.5, 0.5], 0.95).mean).toBeCloseTo(0.5);
+  });
+
+  it("標準誤差は，標本標準偏差を値の数の平方根で割ったものである", () => {
+    expect(meanWithError([0, 1, 1, 1], 0.95).standardError).toBeCloseTo(0.5 / 2);
+  });
+
+  it("区間は，平均±z×標準誤差である", () => {
+    const estimate = meanWithError([0.4, 0.6, 0.5, 0.5], 0.95);
+    const halfWidth = 1.959964 * estimate.standardError;
+    expect(estimate.interval.lower).toBeCloseTo(0.5 - halfWidth, 6);
+    expect(estimate.interval.upper).toBeCloseTo(0.5 + halfWidth, 6);
+  });
+
+  it("区間を0から1の範囲に収める", () => {
+    const estimate = meanWithError([0, 1, 1, 1], 0.95);
+    expect(estimate.interval.upper).toBe(1);
+    expect(estimate.interval.lower).toBeGreaterThan(0);
+  });
+
+  it("値が2つより少なければエラーにする", () => {
+    expect(() => meanWithError([0.5], 0.95)).toThrow(RangeError);
+  });
+});
+
+describe("judgeTarget", () => {
+  it("区間の下限が目標以上ならmetである", () => {
+    expect(judgeTarget({ lower: 0.9, upper: 0.99 }, 0.9)).toBe("met");
+  });
+
+  it("区間の上限が目標より小さければnot metである", () => {
+    expect(judgeTarget({ lower: 0.7, upper: 0.89 }, 0.9)).toBe("not met");
+  });
+
+  it("区間が目標をまたげばinconclusiveである", () => {
+    expect(judgeTarget({ lower: 0.85, upper: 0.95 }, 0.9)).toBe("inconclusive");
+  });
+});
+
+describe("bootstrapInterval", () => {
+  it("統計量を何度も計算し，その分布の分位点を区間にする", () => {
+    let call = 0;
+    const interval = bootstrapInterval(() => (call++ % 100) / 100, {
+      resamples: 100,
+      confidence: 0.9,
+      random: seededRandom(1),
+    });
+    expect(interval.lower).toBeCloseTo(0.05, 2);
+    expect(interval.upper).toBeCloseTo(0.94, 2);
+  });
+
+  it("統計量がundefinedを返した回は除く", () => {
+    let call = 0;
+    const interval = bootstrapInterval(() => (call++ % 2 === 0 ? 0.5 : undefined), {
+      resamples: 10,
+      confidence: 0.95,
+      random: seededRandom(1),
+    });
+    expect(interval).toEqual({ lower: 0.5, upper: 0.5 });
+  });
+
+  it("統計量が一度も値を返さなければエラーにする", () => {
+    expect(() =>
+      bootstrapInterval(() => undefined, {
+        resamples: 10,
+        confidence: 0.95,
+        random: seededRandom(1),
+      }),
+    ).toThrow("no bootstrap samples");
+  });
+
+  it("統計量に乱数を渡す", () => {
+    const interval = bootstrapInterval((random) => random.next(), {
+      resamples: 1000,
+      confidence: 0.9,
+      random: seededRandom(1),
+    });
+    expect(interval.lower).toBeCloseTo(0.05, 1);
+    expect(interval.upper).toBeCloseTo(0.95, 1);
+  });
+});
+
+describe("pairedDifference", () => {
+  const base = [0.5, 0.6, 0.9, 0.2];
+  const head = [0.6, 0.8, 0.9, 0.5];
+
+  it("対ごとの差(対象 - 基準)の平均を求める", () => {
+    expect(pairedDifference(base, head, 0.95).mean).toBeCloseTo(0.15);
+  });
+
+  it("標準誤差は，差の標本標準偏差を対の数の平方根で割ったものである", () => {
+    const sd = Math.sqrt(
+      ((0.1 - 0.15) ** 2 + (0.2 - 0.15) ** 2 + (0 - 0.15) ** 2 + (0.3 - 0.15) ** 2) / 3,
+    );
+    expect(pairedDifference(base, head, 0.95).standardError).toBeCloseTo(sd / 2);
+  });
+
+  it("区間は平均±z×標準誤差であり，負の値もとる", () => {
+    const estimate = pairedDifference([0.9, 0.8, 0.9], [0.8, 0.9, 0.6], 0.95);
+    expect(estimate.interval.lower).toBeLessThan(0);
+    expect(estimate.interval.lower).toBeCloseTo(
+      estimate.mean - 1.959964 * estimate.standardError,
+      5,
+    );
+  });
+
+  it("基準と対象の相関を求める", () => {
+    expect(pairedDifference(base, head, 0.95).correlation).toBeCloseTo(
+      0.15 / Math.sqrt(0.25 * 0.1),
+      6,
+    );
+  });
+
+  it("どちらかの値がすべて同じなら，相関を求めない", () => {
+    expect(pairedDifference([1, 1, 1], [0.5, 0.7, 1], 0.95).correlation).toBeUndefined();
+  });
+
+  it("対の数が2より少ないか，基準と対象の数が違えばエラーにする", () => {
+    expect(() => pairedDifference([0.5], [0.6], 0.95)).toThrow(RangeError);
+    expect(() => pairedDifference([0.5, 0.6], [0.6], 0.95)).toThrow(RangeError);
+  });
+});
+
+describe("minimumDetectableEffect", () => {
+  it("(z(1 - α/2) + z(検出力)) × 標準誤差である", () => {
+    expect(minimumDetectableEffect(0.05, { confidence: 0.95, power: 0.8 })).toBeCloseTo(
+      (1.959964 + 0.841621) * 0.05,
+      5,
+    );
+  });
+});
