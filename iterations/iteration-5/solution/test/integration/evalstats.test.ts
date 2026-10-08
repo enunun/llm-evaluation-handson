@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -211,6 +211,69 @@ describe("evalstats calibrate", () => {
     const { code, stderr } = await run(["calibrate", resultFile]);
     expect(code).toBe(1);
     expect(stderr).toBe("evalstats: no human labels in the result file\n");
+  });
+});
+
+// promptfooconfig.yamlの一部を書き換えた設定で評価する．設定はパッケージの中に一時的に書き，評価のあとで消す．
+async function runWithChange(name: string, from: RegExp, to: string): Promise<string> {
+  const original = await readFile(path.join(packageDir, "promptfooconfig.yaml"), "utf8");
+  const config = `.${name}.tmp.yaml`;
+  await writeFile(path.join(packageDir, config), original.replace(from, to));
+  try {
+    return await runPromptfoo(config);
+  } finally {
+    await rm(path.join(packageDir, config));
+  }
+}
+
+describe("evalstats compare", () => {
+  let baseline = "";
+  let noisier = "";
+  let reseeded = "";
+  beforeAll(async () => {
+    [baseline, noisier, reseeded] = await Promise.all([
+      runPromptfoo(),
+      runWithChange("noisier", /^ {6}noise: 0\.1$/m, "      noise: 0.3"),
+      runWithChange("reseeded", /^ {6}seed: 1$/m, "      seed: 2"),
+    ]);
+  });
+
+  it("偽LLMの揺れを増やした版と比べ，採点器ごとの差を表示し，ゲートに落ちたら終了コード1を返す", async () => {
+    const { code, stdout } = await run(["compare", baseline, noisier, "--margin", "0.05"]);
+    expect(stdout).toBe(
+      [
+        "grader                     tasks  base  head  diff   SE    95% CI          corr  MDE(80%)  verdict",
+        "category (QC01-1)          11     0.65  0.54  -0.12  0.05  [-0.21, -0.02]  0.95  0.14      regressed",
+        "no-promise (QC02-2)        4      1.00  0.95  -0.05  0.03  [-0.11, +0.01]  -     0.08      inconclusive",
+        "judge:polite (QC01-4)      4      0.89  0.79  -0.10  0.04  [-0.18, -0.02]  0.75  0.11      regressed",
+        "decision:answers (QC01-1)  4      0.95  0.88  -0.07  0.02  [-0.12, -0.03]  0.58  0.07      regressed",
+        "gate: FAIL (margin 0.05; category (QC01-1): lower bound -0.21 < -0.05; no-promise (QC02-2): lower bound -0.11 < -0.05; judge:polite (QC01-4): lower bound -0.18 < -0.05; decision:answers (QC01-1): lower bound -0.12 < -0.05)",
+        "",
+      ].join("\n"),
+    );
+    expect(code).toBe(1);
+  });
+
+  it("シードだけを変えた同じ設定どうし(A/A)の比較では，差の区間が0をまたぐ", async () => {
+    const { code, stdout } = await run(["compare", baseline, reseeded]);
+    expect(code).toBe(0);
+    expect(stdout).toBe(
+      [
+        "grader                     tasks  base  head  diff   SE    95% CI          corr  MDE(80%)  verdict",
+        "category (QC01-1)          11     0.65  0.63  -0.03  0.02  [-0.07, +0.02]  0.99  0.07      inconclusive",
+        "no-promise (QC02-2)        4      1.00  0.97  -0.02  0.02  [-0.07, +0.02]  -     0.07      inconclusive",
+        "judge:polite (QC01-4)      4      0.89  0.84  -0.05  0.05  [-0.15, +0.05]  0.62  0.14      inconclusive",
+        "decision:answers (QC01-1)  4      0.95  0.88  -0.07  0.05  [-0.17, +0.02]  0.30  0.13      inconclusive",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("採点器の設定が違う結果どうしは比べず，理由を表示して終了コード1を返す", async () => {
+    const changed = await runWithChange("judge", /^( {12})noise: 0\.1$/m, "$1noise: 0.5");
+    const { code, stderr } = await run(["compare", baseline, changed]);
+    expect(code).toBe(1);
+    expect(stderr).toBe("evalstats: grader settings differ for judge:polite (QC01-4)\n");
   });
 });
 

@@ -40,6 +40,7 @@ flowchart LR
     report
     agreement
     calibration
+    compare
   end
 
   promptfoo --> supportProvider
@@ -86,6 +87,11 @@ flowchart LR
   summary --> random
   report --> calibration
   stats --> random
+  cli --> compare
+  compare --> promptfooResult
+  compare --> stats
+  compare --> summary
+  report --> compare
   summary --> promptfooResult
   summary --> stats
   report --> summary
@@ -106,4 +112,5 @@ flowchart LR
 - `decisionModel`のOllamaの実装は，`ollama(npm)`ではなく`fetch`で`/v1/systemone`を直接呼ぶ．
 - `labelProvider`は，人手ラベルのスイート(`labels.yaml`)で返信をそのまま出力にし，採点器だけを動かす．
 - `calibration`は，人の判定と採点器の結果を`agreement`で比べ，検証結果JSONに保存する．`summary`は検証結果を受け取り，合格率を補正する．
+- `compare`は，2つの結果JSONを`summary`のタスクごとの合格率で対にし，`stats`の対応のある差で比べる．
 - 統計の計算は`stats`に集める．`summary`は区間と標準誤差を求めるために，`report`は区間の型を使うために`stats`をimportする．

@@ -8,7 +8,8 @@
     "test:integration": "vitest run --project integration",
     "typecheck": "tsc -p tsconfig.json",
     "eval": "PROMPTFOO_FAILED_TEST_EXIT_CODE=0 promptfoo eval --no-cache --no-progress-bar --no-table",
-    "evalstats": "node src/cli.ts"
+    "evalstats": "node src/cli.ts",
+    "eval:gate": "node src/cli.ts compare results/baseline.json results/head.json --margin 0.05"
   },
   "dependencies": {
     "@stdlib/random-base-mt19937": "0.2.3",

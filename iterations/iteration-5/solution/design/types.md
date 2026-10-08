@@ -47,6 +47,7 @@ classDiagram
     +metadata: RunMetadata
     +trials: Trial[]
     +labels: TaskLabel[]
+    +graderSettings: Record~string, string~
   }
   class TaskLabel {
     +taskId: string
@@ -216,3 +217,53 @@ classDiagram
 - `ConfusionMatrix`の行は人の判定，列は採点の結果(`GradeOutcome`)である．
 - `GraderRates`の`tpr`と`tnr`は，判定できた(`pass`か`fail`の)試行だけで求める．`positives`と`negatives`は，人が合格，不合格とした試行のうち判定できた数であり，補正の区間のブートストラップに使う．
 - `CalibrationFile`は，`evalstats calibrate --out`で保存し，`evalstats summary --calibration`で読む検証結果である．
+
+2つの評価結果の比較では，採点器ごとに対応のある差を求める．
+
+```mermaid
+classDiagram
+  class Estimate {
+    +mean: number
+    +standardError: number
+    +interval: Interval
+  }
+  class PairedEstimate {
+    +correlation: number | undefined
+  }
+  class Verdict {
+    <<enumeration>>
+    improved
+    regressed
+    inconclusive
+  }
+  class GraderComparison {
+    +grader: string
+    +tasks: number
+    +base: number
+    +head: number
+    +difference: PairedEstimate
+    +minimumDetectableEffect: number
+    +verdict: Verdict
+  }
+  class Comparison {
+    +graders: GraderComparison[]
+  }
+  class GateResult {
+    +pass: boolean
+    +failures: GateFailure[]
+  }
+  class GateFailure {
+    +grader: string
+    +lower: number
+  }
+  Estimate <|-- PairedEstimate
+  Comparison "1" *-- "*" GraderComparison
+  GraderComparison *-- PairedEstimate
+  GraderComparison ..> Verdict
+  GateResult "1" *-- "*" GateFailure
+```
+
+- `PairedEstimate`は，タスクごとの合格率の差(対象 - 基準)の平均，標準誤差，区間に，基準と対象の相関を加えたものである．どちらかの合格率がすべて同じなら，相関は`undefined`になる．
+- `GraderComparison`の`minimumDetectableEffect`は，検出力80%で検出できる最小の差である．
+- `GateFailure`は，`GateResult`の`failures`の要素の形(`{ grader, lower }`)を表す．コードでは名前を付けていない．
+- `EvalResult`の`graderSettings`は，採点器ごとのアサーションの種類，値，設定をJSONにしたものであり，比べられる結果かを確かめるために使う．

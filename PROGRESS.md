@@ -22,9 +22,9 @@
 - [x] `stats`に対応のある差(`pairedDifference`)と最小検出差(`minimumDetectableEffect`)を加える
 - [x] `compare`(採点器ごとの比較と判定，比較できない結果の拒否)と`gate`(非劣性マージン)
 - [x] `promptfooResult`で採点器の設定を読み，比較できるかを確かめる
-- [ ] `cli`の`compare`サブコマンド(`--margin`)と，`package.json`の`eval:gate`スクリプト
+- [x] `cli`の`compare`サブコマンド(`--margin`)と，`package.json`の`eval:gate`スクリプト．統合テストのpromptfooの実行が10秒を超えるため，全パッケージの`vitest.config.ts`に`hookTimeout`を加えた
 - [ ] 設計文書(ADR 0006)，教材の文章，ノート
-- [ ] Ollamaで，同じモデルどうし(A/A)と，qwen2.5:0.5bとqwen2.5:3bを比べた結果を取る
+- [x] Ollamaで，同じモデルどうし(A/A)と，qwen2.5:0.5bとqwen2.5:3bを比べた結果を取る
 - [ ] `mise run check`，演習と前の解答の差分の確認，コミット
 
 ## これからの作業
