@@ -84,7 +84,7 @@
 各Iterationのパッケージは，次のものを`dependencies`に持つ．
 
 - Iteration 0から：`ollama`(Ollamaのクライアント)，`zod`．
-- 受講者が加えるもの：Iteration 1で`@stdlib/random-base-mt19937`，Iteration 2で`simple-statistics`と`@stdlib/stats-binomial-test`．
+- 受講者が加えるもの：Iteration 1で`@stdlib/random-base-mt19937`，Iteration 2で`simple-statistics`，`@stdlib/stats-binomial-test`，`@stdlib/stats-base-dists-normal-quantile`．
 
 ### 実行のしかた
 
@@ -218,4 +218,6 @@ results/                  promptfooの結果JSON(.gitignoreで除外)
 - promptfooは試行の番号を`callApi`の第2引数の`repeatIndex`で渡す．偽LLMは，シード，問い合わせ文，試行の番号から試行ごとのシードを作る．
 - カスタムプロバイダが`private config`を持つと，`ApiProvider`の`config`と型が衝突する．自分の設定は`settings`などの名前にする．
 - Ollamaの動作確認は，軽量なモデル(`qwen2.5:0.5b`，`tev1:0.8b`)で行ってよい．教材に載せるOllamaの出力には，使ったモデルを書く．
+- `simple-statistics`の`probit`は近似で，97.5%点が1.957になる．正規分布の分位点は`@stdlib/stats-base-dists-normal-quantile`で求める．
+- `simple-statistics` 7.12.1は公開から2週間たっていないため，7.12.0を使う．
 - 意思決定モデルの`/v1/systemone`はOllama 0.35以降が必要である．Tev1は英語以外で十分に試験されておらず，入力は約2,000トークンまでである．

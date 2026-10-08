@@ -259,12 +259,16 @@ category (QC01-1)  0.65    0.53    3       5      3
 
 ```console
 $ pnpm evalstats summary results/fake.json --target 0.9
-task          grader              pass   rate  95% CI         status
-refund-01     category (QC01-1)   9/10   0.90  [0.55, 1.00]   flaky
-shipping-01   category (QC01-1)  10/10   1.00  [0.69, 1.00]   stable
+suite: support (provider: support-fake, model: keyword, prompt: classify-v1, trials: 10, seed: 1)
+task         grader             pass   rate  95% CI        status
+refund-01    category (QC01-1)  8/10   0.80  [0.44, 0.97]  flaky
+refund-02    category (QC01-1)  0/10   0.00  [0.00, 0.31]  broken
 ...
-grader              mean   SE     95% CI          pass^3  target 0.90
-category (QC01-1)   0.79   0.11   [0.57, 1.00]    0.55    inconclusive
+shipping-01  category (QC01-1)  10/10  1.00  [0.69, 1.00]  stable
+...
+
+grader             pass@1  SE    95% CI        pass^3  stable  flaky  broken  target 0.90
+category (QC01-1)  0.65    0.13  [0.40, 0.91]  0.53    3       5      3       inconclusive
 ```
 
 ### モジュール
@@ -273,7 +277,9 @@ category (QC01-1)   0.79   0.11   [0.57, 1.00]    0.55    inconclusive
   - `binomialInterval(passes: number, trials: number, confidence: number): Interval`
   - `meanWithError(values: number[], confidence: number): Estimate`
   - `judgeTarget(interval: Interval, target: number): TargetVerdict`
-- `summary.ts`：`TaskSummary`と`GraderSummary`に区間と推定値を持たせる．
+- `summary.ts`：`TaskSummary`と`GraderSummary`に区間と推定値を持たせ，`summarize`が信頼水準と目標を受け取るようにする．
+- `report.ts`：区間，標準誤差，目標との比較の列を加える．
+- `cli.ts`：`--confidence`と`--target`を受け付ける．
 
 ### 設計文書の更新
 
@@ -287,15 +293,15 @@ category (QC01-1)   0.79   0.11   [0.57, 1.00]    0.55    inconclusive
 - 試行を平均してタスクごとの揺れを減らすことと，タスクを単位にしたクラスタ化．試行を独立に数えると標準誤差を過小に見積もること．
 - 二項分布と信頼区間．10回中10回の合格が「100%」を意味しないこと．
 - QA4AIのCustomer Expectation．目標とする合格率を先に決め，区間で判定すること．
-- `simple-statistics`と`@stdlib/stats-binomial-test`の使い方．
+- `simple-statistics`，`@stdlib/stats-binomial-test`，`@stdlib/stats-base-dists-normal-quantile`の使い方．
 
 ### 既存テストへの影響
 
-表示に区間の列と全体の推定値が加わるため，`report`の単体テストと統合テストの期待する出力が変わる．
+表示に区間と標準誤差の列が加わるため，`report`の単体テストと統合テストの期待する出力が変わる．
 
 ### 受講者のツール操作
 
-- `simple-statistics`と`@stdlib/stats-binomial-test`を依存に加える．
+- `simple-statistics`，`@stdlib/stats-binomial-test`，`@stdlib/stats-base-dists-normal-quantile`を依存に加える．
 - 1つのテストファイルだけを実行する．
 
 ## Iteration 3：自由記述を3種類の採点器で評価する
