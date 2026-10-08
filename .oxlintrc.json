@@ -20,6 +20,12 @@
         "require-yield": "off",
         "typescript/require-await": "off"
       }
+    },
+    {
+      "files": ["iterations/*/*/test/**"],
+      "rules": {
+        "unicorn/consistent-function-scoping": "off"
+      }
     }
   ]
 }

@@ -18,10 +18,10 @@
 
 ## 作業中：Iteration 3
 
-- [ ] Iteration 2の解答を演習と解答にコピーし，パッケージ名を変える
-- [ ] 製品に`draftReply`を加え，プロバイダが`task: classify | reply`で呼び分ける
-- [ ] 偽LLM(返信，Judge)と偽の意思決定モデル，Ollamaの意思決定モデルのアダプタ
-- [ ] カスタムアサーション`judgeAssertion`(pass/fail/unknown/error)と`decisionAssertion`(確率としきい値)
+- [x] Iteration 2の解答を演習と解答にコピーし，パッケージ名を変える
+- [x] 製品に`draftReply`を加え，プロバイダが`task: classify | reply`で呼び分ける
+- [x] 偽LLM(返信，Judge)と偽の意思決定モデル，Ollamaの意思決定モデルのアダプタ
+- [x] カスタムアサーション`judgeAssertion`(pass/fail/unknown/error)と`decisionAssertion`(確率としきい値)．試行の番号はプロバイダがメタデータ`trial`に記録し，アサーションが読む
 - [ ] スイートに返信のタスクと3種類の採点器を加える
 - [ ] `promptfooResult`と`summary`で`unknown`と`error`を合格率から除いて数える．`show`サブコマンド
 - [ ] 設計文書(ADR 0004)，教材の文章，ノート

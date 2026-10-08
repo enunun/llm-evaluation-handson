@@ -138,6 +138,48 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
 
+  iterations/iteration-3/exercise:
+    dependencies:
+      '@stdlib/random-base-mt19937':
+        specifier: 0.2.3
+        version: 0.2.3
+      '@stdlib/stats-base-dists-normal-quantile':
+        specifier: 0.3.1
+        version: 0.3.1
+      '@stdlib/stats-binomial-test':
+        specifier: 0.2.3
+        version: 0.2.3
+      ollama:
+        specifier: 0.6.3
+        version: 0.6.3
+      simple-statistics:
+        specifier: 7.12.0
+        version: 7.12.0
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+
+  iterations/iteration-3/solution:
+    dependencies:
+      '@stdlib/random-base-mt19937':
+        specifier: 0.2.3
+        version: 0.2.3
+      '@stdlib/stats-base-dists-normal-quantile':
+        specifier: 0.3.1
+        version: 0.3.1
+      '@stdlib/stats-binomial-test':
+        specifier: 0.2.3
+        version: 0.2.3
+      ollama:
+        specifier: 0.6.3
+        version: 0.6.3
+      simple-statistics:
+        specifier: 7.12.0
+        version: 7.12.0
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+
 packages:
 
   '@ai-sdk/gateway@3.0.200':
