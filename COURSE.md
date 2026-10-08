@@ -220,4 +220,6 @@ results/                  promptfooの結果JSON(.gitignoreで除外)
 - Ollamaの動作確認は，軽量なモデル(`qwen2.5:0.5b`，`tev1:0.8b`)で行ってよい．教材に載せるOllamaの出力には，使ったモデルを書く．
 - `simple-statistics`の`probit`は近似で，97.5%点が1.957になる．正規分布の分位点は`@stdlib/stats-base-dists-normal-quantile`で求める．
 - `simple-statistics` 7.12.1は公開から2週間たっていないため，7.12.0を使う．
+- promptfooのカスタムアサーション(`type: javascript`)は，`context.config`でアサーションの`config`を，`context.metadata`でプロバイダの応答の`metadata`を受け取る．試行の番号は渡されないため，プロバイダがメタデータの`trial`に記録する．返した`metadata`は，結果JSONの`componentResults[].metadata`に入る．
+- 自由記述の評価に使う軽量なモデル(qwen2.5:0.5b)は，問い合わせに答えず方針を書き写すことが多い．教材の振り返りでは，この誤りをトランスクリプトで見せる．
 - 意思決定モデルの`/v1/systemone`はOllama 0.35以降が必要である．Tev1は英語以外で十分に試験されておらず，入力は約2,000トークンまでである．

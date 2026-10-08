@@ -1,6 +1,6 @@
 # モジュール依存図
 
-製品側のモジュールはpromptfooから呼ばれ，分析側の`evalstats`はpromptfooが書いた結果JSONを読む．
+製品側のモジュール(プロバイダ)と採点器のモジュール(アサーション)はpromptfooから呼ばれ，分析側の`evalstats`はpromptfooが書いた結果JSONを読む．
 実線の矢印`A --> B`は，`A`が`B`をimportすることを表す．点線の枠は外部である．
 
 ```mermaid
@@ -23,6 +23,13 @@ flowchart LR
     random
   end
 
+  subgraph graders[採点器]
+    judgeAssertion
+    judge
+    decisionAssertion
+    decisionModel
+  end
+
   subgraph evalstats[evalstats]
     cli
     promptfooResult
@@ -32,6 +39,8 @@ flowchart LR
   end
 
   promptfoo --> supportProvider
+  promptfoo --> judgeAssertion
+  promptfoo --> decisionAssertion
   promptfoo --> resultFile
   supportProvider --> support
   supportProvider --> fakeLlm
@@ -45,6 +54,17 @@ flowchart LR
   ollamaLlm --> llm
   random --> stdlibMt19937
   ollamaClient --> ollamaServer
+  judgeAssertion --> judge
+  judgeAssertion --> fakeLlm
+  judgeAssertion --> ollamaLlm
+  judgeAssertion --> llm
+  judgeAssertion --> random
+  judgeAssertion --> ollamaClient
+  judge --> llm
+  decisionAssertion --> decisionModel
+  decisionAssertion --> random
+  decisionModel --> random
+  decisionModel --> ollamaServer
   cli --> promptfooResult
   cli --> summary
   cli --> report
@@ -52,6 +72,7 @@ flowchart LR
   summary --> promptfooResult
   summary --> stats
   report --> summary
+  report --> promptfooResult
   report --> stats
   stats --> stdlibBinomial
   stats --> stdlibNormal
@@ -64,4 +85,6 @@ flowchart LR
 - `supportProvider`は，設定の`llm`に応じて`fakeLlm`の`keywordLlm`か，`ollamaLlm`と`ollama(npm)`のクライアントを組み立てる．
 - 偽LLMの揺れは`random`の擬似乱数から作る．`supportProvider`は，シード，問い合わせ文，試行の番号から`trialSeed`で試行ごとのシードを作り，試行ごとに`keywordLlm`を組み立てる．promptfooが試行を並行に実行しても，各試行の出力は変わらない．
 - `evalstats`は製品のモジュールをimportしない．promptfooの結果JSONだけを通して製品の評価結果を受け取る．
+- 採点器のモジュールは，製品のLLMのポート(`llm`)と偽LLM(`fakeLlm`)を共有する．LLM Judgeは`judge`を，意思決定モデルは`decisionModel`のポートを通して呼ぶ．
+- `decisionModel`のOllamaの実装は，`ollama(npm)`ではなく`fetch`で`/v1/systemone`を直接呼ぶ．
 - 統計の計算は`stats`に集める．`summary`は区間と標準誤差を求めるために，`report`は区間の型を使うために`stats`をimportする．

@@ -1,3 +1,7 @@
+# <!-- textlint-disable --> と <!-- textlint-enable --> で囲んだ部分は検査しない(モデルの出力の引用など)．
+filters:
+  comments: true
+
 plugins:
   '@textlint/markdown': true
 

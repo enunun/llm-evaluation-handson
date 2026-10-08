@@ -9,7 +9,7 @@ pre-commit:
   commands:
     oxfmt:
       glob: "*.{ts,mjs,js,json,yaml,yml}"
-      run: pnpm oxfmt --check {staged_files}
+      run: pnpm oxfmt --check --no-error-on-unmatched-pattern {staged_files}
 
     oxlint:
       glob: "*.{ts,mjs,js}"

@@ -320,53 +320,73 @@ category (QC01-1)  0.65    0.13  [0.40, 0.91]  0.53    3       5      3       in
 
 ```console
 $ pnpm evalstats summary results/fake.json
-task          grader                     pass   rate  95% CI         status
-refund-01     category (QC01-1)          9/10   0.90  [0.55, 1.00]   flaky
-reply-01      no-promise (QC02-2)       10/10   1.00  [0.69, 1.00]   stable
-reply-01      judge:polite (QC01-4)      8/9    0.89  [0.52, 1.00]   flaky
-reply-01      decision:answers (QC01-1) 10/10   1.00  [0.69, 1.00]   stable
+suite: support (provider: support-fake, model: keyword, template, prompt: classify-v1, reply-v1, trials: 10, seed: 1)
+task         grader                     pass   rate  95% CI        status
 ...
-grader                     mean   SE     95% CI          pass^3  unknown  error
-category (QC01-1)          0.79   0.11   [0.57, 1.00]    0.55    0        0
-no-promise (QC02-2)        0.95   0.05   [0.85, 1.00]    0.85    0        0
-judge:polite (QC01-4)      0.84   0.08   [0.68, 1.00]    0.60    1        0
-decision:answers (QC01-1)  0.90   0.06   [0.78, 1.00]    0.75    0        0
+reply-01     no-promise (QC02-2)        10/10  1.00  [0.69, 1.00]  stable
+reply-01     judge:polite (QC01-4)      9/9    1.00  [0.66, 1.00]  stable
+reply-01     decision:answers (QC01-1)  10/10  1.00  [0.69, 1.00]  stable
+...
+
+grader                     pass@1  SE    95% CI        pass^3  stable  flaky  broken  unknown  error
+category (QC01-1)          0.65    0.13  [0.40, 0.91]  0.53    3       5      3       0        0
+no-promise (QC02-2)        1.00    0.00  [1.00, 1.00]  1.00    4       0      0       0        0
+judge:polite (QC01-4)      0.89    0.06  [0.77, 1.00]  0.72    2       2      0       2        0
+decision:answers (QC01-1)  0.95    0.03  [0.89, 1.00]  0.85    2       2      0       0        0
+
+$ pnpm evalstats show results/fake.json reply-02
+task: reply-02
+trial 1
+  output: お問い合わせいただきありがとうございます．返金のご希望を承りました．…
+  no-promise (QC02-2): pass (Assertion passed)
+  judge:polite (QC01-4): pass (丁寧語がある)
+  decision:answers (QC01-1): pass (probability 0.99 >= threshold 0.50)
+...
 ```
 
 ### モジュール
 
-- `support.ts`：`draftReply(llm: Llm, inquiry: string, policy: string): Promise<string>`を加える．
-- `judge.ts`：`judge(llm: Llm, rubric: Rubric, output: string): Promise<JudgeVerdict>`．
-- `judgeAssertion.ts`：promptfooのアサーションとして`judge`を呼ぶ．
-- `decisionModel.ts`
-  - `interface DecisionModel { noul(state: string, instructions: string): Promise<number> }`
-  - `ollamaDecisionModel(options): DecisionModel`，`fakeDecisionModel(options): DecisionModel`
-- `decisionAssertion.ts`：promptfooのアサーションとして意思決定モデルを呼ぶ．
-- `fakeLlm.ts`：返信を書く偽LLMと，Judgeの偽LLMを加える．
-- `promptfooResult.ts`，`summary.ts`：`unknown`と`error`を読み取り，集計から除く．
+- `support.ts`：`draftReply(llm: Llm, inquiry: string, policy: string): Promise<string>`，`supportPolicy`，`replyPromptVersion`を加える．
+- `llm.ts`，`ollamaLlm.ts`：`LlmRequest`に`format?: "json"`を加え，Ollamaに渡す．
+- `fakeLlm.ts`：返信を書く`templateReplyLlm(options): Llm`と，`fakeJudgeLlm(options): Llm`を加える．
+- `supportProvider.ts`：変数`task`で分類と返信を呼び分け，試行の番号をメタデータ`trial`に記録する．
+- `judge.ts`：`judge(llm: Llm, rubric: string, output: string): Promise<JudgeVerdict>`．
+- `judgeAssertion.ts`：promptfooのカスタムアサーション．`gradeWithJudge(llm, rubric, output)`で判定を採点結果にする．
+- `decisionModel.ts`：意思決定モデルのポート`DecisionModel`(`noul(state, instructions)`で「はい」の確率を返す)と，`ollamaDecisionModel(options)`，`fakeDecisionModel(options)`．
+- `decisionAssertion.ts`：promptfooのカスタムアサーション．`gradeWithDecisionModel(model, instructions, state, threshold)`．
+- `promptfooResult.ts`：`Trial`を`outcome`(4値)，`trial`，`reason`を持つ形にし，記録を結果ごとにまとめる．
+- `summary.ts`：`unknown`と`error`を合格率から除いて数え，判定できた試行がないタスクを`unjudged`にする．
+- `report.ts`：`unknown`と`error`の列と，`formatTranscripts(trials, taskId)`を加える．
 - `cli.ts`：`show`サブコマンドを加える．
+
+### リファクタリング
+
+- 分類のタスクの採点器を，`defaultTest`から各タスクの`assert`に移す．YAMLのアンカーで共有する．
+- 偽LLMがプロンプトからタグの間を取り出す処理を，どのタグでも使える形にする．
+- `main`をサブコマンドごとの関数に分ける．
 
 ### 設計文書の更新
 
-- `design/modules.md`：Judgeと意思決定モデルの2つの外部と，それを呼ぶアサーションを加える．
-- `design/types.md`：`Rubric`，`JudgeVerdict`，`GradeOutcome`(`pass`/`fail`/`unknown`/`error`)，`DecisionModel`を加える．
+- `design/modules.md`：採点器のモジュール(2つのアサーション，`judge`，`decisionModel`)をまとめて描く．
+- `design/types.md`：`JudgeVerdict`，`GradeOutcome`(`pass`/`fail`/`unknown`/`error`)，`DecisionModel`を加え，`Trial`と集計の型を改める．
 - `design/adr/0004-model-based-graders.md`：コードで判定できるものはコードで判定し，判定できない観点だけをモデルに任せる判断を記録する．LLM Judgeと意思決定モデルをどの観点に使い分けるか，ルーブリックを1観点にする理由，`unknown`を許す理由，しきい値の決め方も書く．
 
 ### 学ぶこと
 
 - 採点器の分類(コード，LLM Judge，意思決定モデル，人)と，それぞれの長所と短所．
 - ルーブリックの書き方(1観点ごとに独立したJudge，二値，判断できないときの逃げ道，理由を先に出力させる)．
-- 構造化出力(OllamaのJSON出力とzodによる検証)と，TypeScriptの判別可能なユニオン型．
+- 構造化出力(OllamaのJSON出力とzodによる検証)と，文字列のリテラル型のユニオンと型の述語．
 - 意思決定モデルの使い方(状態，型付きの質問，確率)と，確率をしきい値で合否に変えること．
 - Judgeも非決定的であり，採点そのものが揺れること．
 - トランスクリプトを読み，不合格がLLMの誤りか採点器の誤りかを見分けること．
-- promptfooのカスタムアサーション．
+- promptfooのカスタムアサーションとYAMLのアンカー．
 
 ### 既存テストへの影響
 
 - 採点の結果が4値になるため，`promptfooResult`と`summary`のテストの期待値が変わる．
 - 表示に`unknown`と`error`の列が加わるため，`report`の単体テストと統合テストの期待する出力が変わる．
-- プロバイダが2つの機能を呼び分けるため，プロバイダのテストを書き換える．
+- プロバイダが試行の番号を記録するため，プロバイダのメタデータのテストを書き換える．
+- 使い方の表示に`show`が加わるため，引数の誤りの統合テストを書き換える．
 
 ### 受講者のツール操作
 
