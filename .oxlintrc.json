@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/consistent-type-imports": "error",
+    "import/no-cycle": "error"
+  },
+  "ignorePatterns": ["node_modules", "**/results/**", "**/.promptfoo/**"],
+  "overrides": [
+    {
+      "files": ["iterations/iteration-0/exercise/src/**"],
+      "rules": {
+        "no-unused-vars": "off",
+        "require-yield": "off",
+        "typescript/require-await": "off"
+      }
+    }
+  ]
+}

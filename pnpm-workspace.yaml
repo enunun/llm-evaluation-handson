@@ -1,0 +1,13 @@
+packages:
+  - iterations/*/*
+
+# 公開から2週間未満の版は入れない(供給網への攻撃に備える)．
+minimumReleaseAge: 20160
+
+# インストール時のスクリプトを実行してよい依存．
+allowBuilds:
+  esbuild: true
+  "@swc/core": true
+  "@playwright/browser-chromium": false
+  onnxruntime-node: false
+  protobufjs: false

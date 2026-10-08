@@ -7,6 +7,14 @@ pre-commit:
     - rebase
 
   commands:
+    oxfmt:
+      glob: "*.{ts,mjs,js,json,yaml,yml}"
+      run: pnpm oxfmt --check {staged_files}
+
+    oxlint:
+      glob: "*.{ts,mjs,js}"
+      run: pnpm oxlint --type-aware --deny-warnings {staged_files}
+
     textlint:
       glob: "*.md"
       run: pnpm textlint {staged_files}

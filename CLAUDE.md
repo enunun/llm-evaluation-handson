@@ -1,6 +1,9 @@
-# PROJECT_NAME
+# llm-evaluation-handson
 
-TODO: Describe the project overview.
+A Japanese hands-on course on evaluating generative-AI products under nondeterminism.
+Learners grow a small LLM feature (support-inquiry classification and reply drafting), evaluate it with promptfoo, and build the analysis CLI `evalstats` over six Iterations, test-first.
+The course is built with the `build-handson` skill of `enunun/system-development-skills`.
+`COURSE.md` holds the course plan and conventions; `docs/ROADMAP.md` is the only source of what each Iteration builds.
 
 # RTK (Rust Token Killer)
 
@@ -8,7 +11,9 @@ Prefix every shell command with `rtk`, including each command in an `&&` chain â
 
 ## Working conventions
 
-TODO: Describe the development conventions for this project (branching strategy, commit granularity, whether reviews are required, etc.).
+- Build one Iteration at a time, following `COURSE.md` and `docs/ROADMAP.md`. Iteration N's exercise must equal Iteration N-1's solution apart from the package name and prose.
+- Output shown in the material must come from real runs.
+- TypeScript runs without a build step (Node type stripping): import with `.ts` extensions and use only erasable syntax.
 
 - `git commit` runs the lefthook hooks. If they fail, fix the reported issues. Do not use `--no-verify`.
 
@@ -16,7 +21,10 @@ TODO: Describe the development conventions for this project (branching strategy,
 
 ## Code map
 
-TODO: Describe the main directory structure and the purpose of each directory.
+- `COURSE.md`: course plan for builders (audience, tools, layout, commands, pitfalls).
+- `docs/`: learner guides (`ROADMAP.md`, `tdd.md`, `design.md`) and per-Iteration notes (`notes/`).
+- `iterations/iteration-N/{exercise,solution}/`: pnpm workspace packages. Each has `src/`, `test/unit/`, `test/integration/`, `design/`, `docs/iteration-N.md`, `promptfooconfig.yaml`.
+- `scripts/`: Mermaid syntax check and the design-to-code check run by `mise run check`.
 
 # Artifact Cleanup
 

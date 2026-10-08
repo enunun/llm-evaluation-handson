@@ -3,8 +3,29 @@ services:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
-    container_name: PROJECT_NAME-container
+    container_name: llm-evaluation-handson-app
     volumes:
       - ..:/workspaces:cached
     working_dir: /workspaces
     command: ["sleep", "infinity"]
+    depends_on:
+      - ollama
+
+  # 製品，Judge，意思決定モデルを動かすローカルのLLMサーバ．
+  # モデルは名前付きボリュームに保存し，コンテナを作り直しても残す．
+  ollama:
+    image: ollama/ollama:0.35.1
+    container_name: llm-evaluation-handson-ollama
+    volumes:
+      - ollama-models:/root/.ollama
+    # GPUを使う場合は，次のコメントを外す(NVIDIA Container Toolkitが必要)．
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  ollama-models:

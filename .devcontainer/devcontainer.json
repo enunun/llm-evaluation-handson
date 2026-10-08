@@ -1,22 +1,47 @@
 {
-	"name": "PROJECT_NAME-dev",
-	"dockerComposeFile": "./compose.yml",
-	"service": "app",
-	"workspaceFolder": "/workspaces",
-	"shutdownAction": "stopCompose",
-	"customizations": {
-		"vscode": {
-			"extensions": ["anthropic.claude-code", "growthjack.claude-code-usage"]
-		}
-	},
-	"postCreateCommand": "mise run setup",
-	"initializeCommand": "mkdir -p \"${localWorkspaceFolder}/.devcontainer/claude-home/.claude\" \"${localWorkspaceFolder}/.devcontainer/rtk-home/.config/rtk\" \"${localWorkspaceFolder}/.devcontainer/rtk-home/.local/share/rtk\"",
-	"mounts": [
-		"source=${localWorkspaceFolder}/.devcontainer/claude-home/.claude,target=/root/.claude,type=bind",
-		"source=${localWorkspaceFolder}/.devcontainer/rtk-home/.config/rtk,target=/root/.config/rtk,type=bind",
-		"source=${localWorkspaceFolder}/.devcontainer/rtk-home/.local/share/rtk,target=/root/.local/share/rtk,type=bind"
-	],
-	"containerEnv": {
-		"CLAUDE_CONFIG_DIR": "/root/.claude"
-	}
+  "name": "llm-evaluation-handson",
+  "dockerComposeFile": "./compose.yml",
+  "service": "app",
+  "runServices": ["app", "ollama"],
+  "workspaceFolder": "/workspaces",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "growthjack.claude-code-usage",
+        "vitest.explorer",
+        "typescriptteam.native-preview",
+        "oxc.oxc-vscode",
+        "bierner.markdown-mermaid",
+        "redhat.vscode-yaml",
+        "davidanson.vscode-markdownlint",
+        "3w36zj6.textlint"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "oxc.oxc-vscode",
+        "editor.formatOnSave": true,
+        "[markdown]": {
+          "editor.defaultFormatter": "davidanson.vscode-markdownlint"
+        }
+      }
+    }
+  },
+  "forwardPorts": [15500],
+  "portsAttributes": {
+    "15500": { "label": "promptfoo view" }
+  },
+  "postCreateCommand": "mise run setup",
+  "initializeCommand": "mkdir -p \"${localWorkspaceFolder}/.devcontainer/claude-home/.claude\" \"${localWorkspaceFolder}/.devcontainer/rtk-home/.config/rtk\" \"${localWorkspaceFolder}/.devcontainer/rtk-home/.local/share/rtk\"",
+  "mounts": [
+    "source=${localWorkspaceFolder}/.devcontainer/claude-home/.claude,target=/root/.claude,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/rtk-home/.config/rtk,target=/root/.config/rtk,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/rtk-home/.local/share/rtk,target=/root/.local/share/rtk,type=bind"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/root/.claude",
+    "OLLAMA_HOST": "http://ollama:11434",
+    "PROMPTFOO_DISABLE_TELEMETRY": "1",
+    "PROMPTFOO_DISABLE_UPDATE": "1"
+  }
 }
