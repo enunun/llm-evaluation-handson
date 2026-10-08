@@ -16,9 +16,17 @@ const resultSchema = z.object({
   response: z.object({ output: z.unknown().optional() }).nullish(),
   gradingResult: z
     .object({
-      componentResults: z.array(z.object({ pass: z.boolean(), assertion: assertionSchema })),
+      componentResults: z.array(
+        z.object({
+          pass: z.boolean(),
+          reason: z.string().optional(),
+          assertion: assertionSchema,
+          metadata: z.object({ outcome: z.string().optional() }).loose().optional(),
+        }),
+      ),
     })
     .nullish(),
+  error: z.string().nullish(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -27,12 +35,17 @@ const fileSchema = z.object({
   results: z.object({ results: z.array(resultSchema) }),
 });
 
-// 1回の試行を，1つの採点器で採点した結果．
+// 採点の結果．unknownは採点器が判断できなかったこと，errorは採点できなかったことを表す．
+export type GradeOutcome = "pass" | "fail" | "unknown" | "error";
+
+// 1回の試行を，1つの採点器で採点した結果．trialは，同じタスクの試行の中での1からの番号．
 export type Trial = {
   taskId: string;
+  trial: number;
   grader: string;
   output: string;
-  pass: boolean;
+  outcome: GradeOutcome;
+  reason: string;
 };
 
 // プロバイダが出力のメタデータに残した，再現のための記録．
@@ -55,8 +68,8 @@ export function parseResultFile(text: string): EvalResult {
   return {
     suite: config.description ?? "",
     provider: first ? first.provider.label || first.provider.id : "",
-    metadata: pickMetadata(first?.metadata ?? {}),
-    trials: results.results.flatMap(toTrials),
+    metadata: mergeMetadata(results.results.map((result) => pickMetadata(result.metadata ?? {}))),
+    trials: withTrialNumbers(results.results).flatMap(([result, trial]) => toTrials(result, trial)),
   };
 }
 
@@ -65,19 +78,58 @@ function pickMetadata(raw: Record<string, unknown>): RunMetadata {
   return metadataSchema.safeParse(raw).data ?? {};
 }
 
+// 結果ごとの記録をまとめる．文字列の項目は，現れた順に重複を除いてカンマでつなぐ．
+// シードはプロバイダの設定なので，最初の記録の値を使う．
+function mergeMetadata(records: RunMetadata[]): RunMetadata {
+  const join = (key: "llm" | "model" | "promptVersion") => {
+    const values = [...new Set(records.flatMap((record) => record[key] ?? []))];
+    return values.length === 0 ? {} : { [key]: values.join(", ") };
+  };
+  const seed = records.find((record) => record.seed !== undefined)?.seed;
+  return {
+    ...join("llm"),
+    ...join("model"),
+    ...join("promptVersion"),
+    ...(seed === undefined ? {} : { seed }),
+  };
+}
+
 type RawResult = z.infer<typeof resultSchema>;
 type Assertion = z.infer<typeof assertionSchema>;
 
 const graderName = (assertion: Assertion): string => assertion.metric ?? assertion.type;
 
-// テストケースのアサーションごとに合否を取り出す．
-// プロバイダがエラーを返すと採点結果がないため，そのアサーションは不合格とする．
-function toTrials(result: RawResult): Trial[] {
+// 同じタスクの結果に，現れた順に1からの番号を付ける．
+function withTrialNumbers(results: RawResult[]): [RawResult, number][] {
+  const counts = new Map<string, number>();
+  return results.map((result) => {
+    const trial = (counts.get(result.testCase.description) ?? 0) + 1;
+    counts.set(result.testCase.description, trial);
+    return [result, trial];
+  });
+}
+
+const isOutcome = (value: string | undefined): value is GradeOutcome =>
+  value === "pass" || value === "fail" || value === "unknown" || value === "error";
+
+// テストケースのアサーションごとに，採点の結果と理由を取り出す．
+// 自作のアサーションは結果をメタデータのoutcomeに残す．ほかのアサーションは合否から決める．
+// プロバイダがエラーを返すと採点結果がないため，そのアサーションはerrorとする．
+function toTrials(result: RawResult, trial: number): Trial[] {
   const output = typeof result.response?.output === "string" ? result.response.output : "";
   const components = result.gradingResult?.componentResults ?? [];
   return result.testCase.assert.map((assertion) => {
     const grader = graderName(assertion);
     const component = components.find((c) => graderName(c.assertion) === grader);
-    return { taskId: result.testCase.description, grader, output, pass: component?.pass ?? false };
+    const base = { taskId: result.testCase.description, trial, grader, output };
+    if (component === undefined) {
+      return { ...base, outcome: "error" as const, reason: result.error ?? "not graded" };
+    }
+    const recorded = component.metadata?.outcome;
+    return {
+      ...base,
+      outcome: isOutcome(recorded) ? recorded : component.pass ? "pass" : "fail",
+      reason: component.reason ?? "",
+    };
   });
 }

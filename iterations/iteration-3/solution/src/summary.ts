@@ -1,9 +1,10 @@
-import type { EvalResult, RunMetadata, Trial } from "./promptfooResult.ts";
+import type { EvalResult, GradeOutcome, RunMetadata, Trial } from "./promptfooResult.ts";
 import { binomialInterval, judgeTarget, meanWithError } from "./stats.ts";
 import type { Estimate, Interval, TargetVerdict } from "./stats.ts";
 
-// 全試行で合格ならstable，全試行で不合格ならbroken，合否が揺れればflaky．
-export type Status = "stable" | "flaky" | "broken";
+// 判定できた試行がすべて合格ならstable，すべて不合格ならbroken，合否が揺れればflaky．
+// 判定できた試行がなければunjudged．
+export type Status = "stable" | "flaky" | "broken" | "unjudged";
 
 // 1つのタスクを1つの採点器で採点した，すべての試行．
 export type TaskTrials = {
@@ -16,9 +17,13 @@ export type TaskSummary = {
   taskId: string;
   grader: string;
   passes: number;
+  // 判定できた(passかfailの)試行の数．
   trials: number;
-  rate: number;
-  interval: Interval;
+  unknown: number;
+  errors: number;
+  // 判定できた試行がなければundefined．
+  rate: number | undefined;
+  interval: Interval | undefined;
   status: Status;
 };
 
@@ -31,6 +36,8 @@ export type GraderSummary = {
   stable: number;
   flaky: number;
   broken: number;
+  unknown: number;
+  errors: number;
   targetVerdict?: TargetVerdict;
 };
 
@@ -85,7 +92,7 @@ export function summarize(result: EvalResult, options: SummaryOptions): Summary 
     suite: result.suite,
     provider: result.provider,
     metadata: result.metadata,
-    trialsPerTask: Math.max(0, ...tasks.map((task) => task.trials)),
+    trialsPerTask: Math.max(0, ...tasks.map((task) => task.trials + task.unknown + task.errors)),
     k: options.k,
     confidence,
     ...(options.target === undefined ? {} : { target: options.target }),
@@ -101,22 +108,31 @@ export function summarize(result: EvalResult, options: SummaryOptions): Summary 
 }
 
 function summarizeTask(group: TaskTrials, confidence: number): TaskSummary {
-  const passes = group.trials.filter((trial) => trial.pass).length;
-  const trials = group.trials.length;
-  const status: Status = passes === trials ? "stable" : passes === 0 ? "broken" : "flaky";
-  return {
+  const count = (outcome: GradeOutcome) => group.trials.filter((t) => t.outcome === outcome).length;
+  const passes = count("pass");
+  const trials = passes + count("fail");
+  const base = {
     taskId: group.taskId,
     grader: group.grader,
     passes,
     trials,
+    unknown: count("unknown"),
+    errors: count("error"),
+  };
+  if (trials === 0) {
+    return { ...base, rate: undefined, interval: undefined, status: "unjudged" };
+  }
+  return {
+    ...base,
     rate: passes / trials,
     interval: binomialInterval(passes, trials, confidence),
-    status,
+    status: passes === trials ? "stable" : passes === 0 ? "broken" : "flaky",
   };
 }
 
-const mean = (values: number[]): number =>
-  values.reduce((sum, value) => sum + value, 0) / values.length;
+const sum = (values: number[]): number => values.reduce((total, value) => total + value, 0);
+
+const mean = (values: number[]): number => sum(values) / values.length;
 
 // 同じタスクの試行どうしは独立でないため，標準誤差はタスクごとの合格率から求める．
 function summarizeGrader(
@@ -125,18 +141,21 @@ function summarizeGrader(
   options: SummaryOptions & { confidence: number },
 ): GraderSummary {
   const { k, confidence, target } = options;
-  const rates = tasks.map((task) => task.rate);
+  const judged = tasks.filter((task) => task.rate !== undefined);
+  const rates = judged.flatMap((task) => (task.rate === undefined ? [] : [task.rate]));
   const estimate = rates.length >= 2 ? meanWithError(rates, confidence) : undefined;
-  const enoughTrials = tasks.every((task) => task.trials >= k);
+  const enoughTrials = judged.length > 0 && judged.every((task) => task.trials >= k);
   const count = (status: Status) => tasks.filter((task) => task.status === status).length;
   return {
     grader,
-    passAt1: mean(rates),
+    passAt1: rates.length === 0 ? 0 : mean(rates),
     estimate,
-    passHatK: enoughTrials ? mean(tasks.map((t) => passHatK(t.passes, t.trials, k))) : undefined,
+    passHatK: enoughTrials ? mean(judged.map((t) => passHatK(t.passes, t.trials, k))) : undefined,
     stable: count("stable"),
     flaky: count("flaky"),
     broken: count("broken"),
+    unknown: sum(tasks.map((task) => task.unknown)),
+    errors: sum(tasks.map((task) => task.errors)),
     ...(target === undefined || estimate === undefined
       ? {}
       : { targetVerdict: judgeTarget(estimate.interval, target) }),

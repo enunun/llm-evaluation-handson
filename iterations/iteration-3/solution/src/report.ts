@@ -1,3 +1,4 @@
+import type { Trial } from "./promptfooResult.ts";
 import type { Interval } from "./stats.ts";
 import type { Summary } from "./summary.ts";
 
@@ -9,8 +10,8 @@ export function formatSummary(summary: Summary): string {
       t.taskId,
       t.grader,
       `${t.passes}/${t.trials}`,
-      t.rate.toFixed(2),
-      formatInterval(t.interval),
+      t.rate === undefined ? "-" : t.rate.toFixed(2),
+      t.interval === undefined ? "-" : formatInterval(t.interval),
       t.status,
     ]),
   ];
@@ -25,6 +26,8 @@ export function formatSummary(summary: Summary): string {
       "stable",
       "flaky",
       "broken",
+      "unknown",
+      "error",
       ...targetColumn,
     ],
     ...summary.graders.map((g) => [
@@ -36,12 +39,29 @@ export function formatSummary(summary: Summary): string {
       String(g.stable),
       String(g.flaky),
       String(g.broken),
+      String(g.unknown),
+      String(g.errors),
       ...(summary.target === undefined ? [] : [g.targetVerdict ?? "-"]),
     ]),
   ];
   return [formatHeader(summary), ...formatTable(taskRows), "", ...formatTable(graderRows), ""].join(
     "\n",
   );
+}
+
+// タスクの試行ごとに，出力と，採点器ごとの結果と理由を表示する．
+export function formatTranscripts(trials: Trial[], taskId: string): string {
+  const ofTask = trials.filter((trial) => trial.taskId === taskId);
+  if (ofTask.length === 0) {
+    throw new Error(`unknown task: ${taskId}`);
+  }
+  const lines = [`task: ${taskId}`];
+  for (const number of new Set(ofTask.map((trial) => trial.trial))) {
+    const graded = ofTask.filter((trial) => trial.trial === number);
+    lines.push(`trial ${number}`, `  output: ${graded[0]?.output.replaceAll("\n", " ") ?? ""}`);
+    lines.push(...graded.map((trial) => `  ${trial.grader}: ${trial.outcome} (${trial.reason})`));
+  }
+  return [...lines, ""].join("\n");
 }
 
 const formatInterval = (interval: Interval): string =>

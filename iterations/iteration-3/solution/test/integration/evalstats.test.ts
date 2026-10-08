@@ -63,30 +63,68 @@ describe("evalstats summary", () => {
     resultFile = await runPromptfoo();
   });
 
-  it("偽LLMで10回ずつ評価したスイートの，合格率，信頼区間，状態，採点器ごとの集計を表示する", async () => {
+  it("偽LLM，偽のJudge，偽の意思決定モデルで10回ずつ評価したスイートの，タスクと採点器ごとの集計を表示する", async () => {
     const { code, stdout } = await run(["summary", resultFile]);
     expect(code).toBe(0);
     expect(stdout).toBe(
       [
-        "suite: support (provider: support-fake, model: keyword, prompt: classify-v1, trials: 10, seed: 1)",
-        "task         grader             pass   rate  95% CI        status",
-        "refund-01    category (QC01-1)  8/10   0.80  [0.44, 0.97]  flaky",
-        "refund-02    category (QC01-1)  0/10   0.00  [0.00, 0.31]  broken",
-        "refund-03    category (QC01-1)  0/10   0.00  [0.00, 0.31]  broken",
-        "shipping-01  category (QC01-1)  10/10  1.00  [0.69, 1.00]  stable",
-        "shipping-02  category (QC01-1)  8/10   0.80  [0.44, 0.97]  flaky",
-        "account-01   category (QC01-1)  10/10  1.00  [0.69, 1.00]  stable",
-        "account-02   category (QC01-1)  9/10   0.90  [0.55, 1.00]  flaky",
-        "other-01     category (QC01-1)  8/10   0.80  [0.44, 0.97]  flaky",
-        "other-02     category (QC01-1)  10/10  1.00  [0.69, 1.00]  stable",
-        "other-03     category (QC01-1)  9/10   0.90  [0.55, 1.00]  flaky",
-        "mixed-01     category (QC01-1)  0/10   0.00  [0.00, 0.31]  broken",
+        "suite: support (provider: support-fake, model: keyword, template, prompt: classify-v1, reply-v1, trials: 10, seed: 1)",
+        "task         grader                     pass   rate  95% CI        status",
+        "refund-01    category (QC01-1)          8/10   0.80  [0.44, 0.97]  flaky",
+        "refund-02    category (QC01-1)          0/10   0.00  [0.00, 0.31]  broken",
+        "refund-03    category (QC01-1)          0/10   0.00  [0.00, 0.31]  broken",
+        "shipping-01  category (QC01-1)          10/10  1.00  [0.69, 1.00]  stable",
+        "shipping-02  category (QC01-1)          8/10   0.80  [0.44, 0.97]  flaky",
+        "account-01   category (QC01-1)          10/10  1.00  [0.69, 1.00]  stable",
+        "account-02   category (QC01-1)          9/10   0.90  [0.55, 1.00]  flaky",
+        "other-01     category (QC01-1)          8/10   0.80  [0.44, 0.97]  flaky",
+        "other-02     category (QC01-1)          10/10  1.00  [0.69, 1.00]  stable",
+        "other-03     category (QC01-1)          9/10   0.90  [0.55, 1.00]  flaky",
+        "mixed-01     category (QC01-1)          0/10   0.00  [0.00, 0.31]  broken",
+        "reply-01     no-promise (QC02-2)        10/10  1.00  [0.69, 1.00]  stable",
+        "reply-01     judge:polite (QC01-4)      9/9    1.00  [0.66, 1.00]  stable",
+        "reply-01     decision:answers (QC01-1)  10/10  1.00  [0.69, 1.00]  stable",
+        "reply-02     no-promise (QC02-2)        10/10  1.00  [0.69, 1.00]  stable",
+        "reply-02     judge:polite (QC01-4)      8/10   0.80  [0.44, 0.97]  flaky",
+        "reply-02     decision:answers (QC01-1)  9/10   0.90  [0.55, 1.00]  flaky",
+        "reply-03     no-promise (QC02-2)        10/10  1.00  [0.69, 1.00]  stable",
+        "reply-03     judge:polite (QC01-4)      10/10  1.00  [0.69, 1.00]  stable",
+        "reply-03     decision:answers (QC01-1)  10/10  1.00  [0.69, 1.00]  stable",
+        "reply-04     no-promise (QC02-2)        10/10  1.00  [0.69, 1.00]  stable",
+        "reply-04     judge:polite (QC01-4)      7/9    0.78  [0.40, 0.97]  flaky",
+        "reply-04     decision:answers (QC01-1)  9/10   0.90  [0.55, 1.00]  flaky",
         "",
-        "grader             pass@1  SE    95% CI        pass^3  stable  flaky  broken",
-        "category (QC01-1)  0.65    0.13  [0.40, 0.91]  0.53    3       5      3",
+        "grader                     pass@1  SE    95% CI        pass^3  stable  flaky  broken  unknown  error",
+        "category (QC01-1)          0.65    0.13  [0.40, 0.91]  0.53    3       5      3       0        0",
+        "no-promise (QC02-2)        1.00    0.00  [1.00, 1.00]  1.00    4       0      0       0        0",
+        "judge:polite (QC01-4)      0.89    0.06  [0.77, 1.00]  0.72    2       2      0       2        0",
+        "decision:answers (QC01-1)  0.95    0.03  [0.89, 1.00]  0.85    2       2      0       0        0",
         "",
       ].join("\n"),
     );
+  });
+
+  it("showで，タスクの試行ごとの出力と，採点器ごとの結果と理由を表示する", async () => {
+    const { code, stdout } = await run(["show", resultFile, "reply-02"]);
+    expect(code).toBe(0);
+    expect(stdout.split("\n").slice(0, 10)).toEqual([
+      "task: reply-02",
+      "trial 1",
+      "  output: お問い合わせいただきありがとうございます．返金のご希望を承りました．商品の到着から30日以内で未使用の場合，担当部署が確認のうえご連絡いたします．",
+      "  no-promise (QC02-2): pass (Assertion passed)",
+      "  judge:polite (QC01-4): pass (丁寧語がある)",
+      "  decision:answers (QC01-1): pass (probability 0.99 >= threshold 0.50)",
+      "trial 2",
+      "  output: ただいま新商品のセールを実施中です．ぜひご覧ください．",
+      "  no-promise (QC02-2): pass (Assertion passed)",
+      "  judge:polite (QC01-4): fail (丁寧語がない)",
+    ]);
+  });
+
+  it("showで未知のタスクを指定したら，理由を表示して終了コード1を返す", async () => {
+    const { code, stderr } = await run(["show", resultFile, "reply-09"]);
+    expect(code).toBe(1);
+    expect(stderr).toBe("evalstats: unknown task: reply-09\n");
   });
 
   it("--kで，pass^kのkを変える", async () => {
@@ -96,16 +134,18 @@ describe("evalstats summary", () => {
 
   it("--confidenceで，信頼区間の水準を変える", async () => {
     const { stdout } = await run(["summary", resultFile, "--confidence", "0.8"]);
-    expect(stdout).toContain("refund-01    category (QC01-1)  8/10   0.80  [0.55, 0.95]  flaky\n");
     expect(stdout).toContain(
-      "category (QC01-1)  0.65    0.13  [0.49, 0.82]  0.53    3       5      3\n",
+      "refund-01    category (QC01-1)          8/10   0.80  [0.55, 0.95]  flaky\n",
+    );
+    expect(stdout).toContain(
+      "category (QC01-1)          0.65    0.13  [0.49, 0.82]  0.53    3       5      3       0        0\n",
     );
   });
 
   it("--targetで，採点器ごとに信頼区間と目標を比べる", async () => {
     const { stdout } = await run(["summary", resultFile, "--target", "0.9"]);
-    expect(stdout).toContain("broken  target 0.90\n");
-    expect(stdout).toContain("3       5      3       inconclusive\n");
+    expect(stdout).toContain("error  target 0.90\n");
+    expect(stdout).toContain("3       5      3       0        0      inconclusive\n");
   });
 });
 
@@ -114,8 +154,9 @@ describe("evalstats の引数の誤り", () => {
     const { code, stderr } = await run([]);
     expect(code).toBe(2);
     expect(stderr).toContain(
-      "usage: evalstats summary <result.json> [--k <k>] [--confidence <level>] [--target <rate>]",
+      "evalstats summary <result.json> [--k <k>] [--confidence <level>] [--target <rate>]\n",
     );
+    expect(stderr).toContain("evalstats show <result.json> <task>\n");
   });
 
   it("未知のサブコマンドには使い方を表示し，終了コード2を返す", async () => {

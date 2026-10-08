@@ -22,8 +22,8 @@
 - [x] 製品に`draftReply`を加え，プロバイダが`task: classify | reply`で呼び分ける
 - [x] 偽LLM(返信，Judge)と偽の意思決定モデル，Ollamaの意思決定モデルのアダプタ
 - [x] カスタムアサーション`judgeAssertion`(pass/fail/unknown/error)と`decisionAssertion`(確率としきい値)．試行の番号はプロバイダがメタデータ`trial`に記録し，アサーションが読む
-- [ ] スイートに返信のタスクと3種類の採点器を加える
-- [ ] `promptfooResult`と`summary`で`unknown`と`error`を合格率から除いて数える．`show`サブコマンド
+- [x] スイートに返信のタスクと3種類の採点器を加える
+- [x] `promptfooResult`と`summary`で`unknown`と`error`を合格率から除いて数える．`show`サブコマンド．記録は結果ごとの値を重複を除いてつなぐ
 - [ ] 設計文書(ADR 0004)，教材の文章，ノート
 - [ ] Ollama(qwen2.5:0.5b，tev1:0.8b)での実行結果を取る
 - [ ] `mise run check`，演習と前の解答の差分の確認，コミット

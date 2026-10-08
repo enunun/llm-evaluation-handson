@@ -4,12 +4,20 @@ import { parseResultFile } from "../../src/promptfooResult.ts";
 const metric = "category (QC01-1)";
 
 type Assertion = { type: string; metric?: string };
+type Component = {
+  pass: boolean;
+  score: number;
+  reason?: string;
+  assertion: Assertion;
+  metadata?: Record<string, unknown>;
+};
 
 function result(
   description: string,
   output: string,
   pass: boolean,
   assertion: Assertion = { type: "equals", metric },
+  component: Partial<Component> = {},
 ) {
   return {
     testCase: { description, assert: [assertion] },
@@ -18,7 +26,7 @@ function result(
     success: pass,
     gradingResult: {
       pass,
-      componentResults: [{ pass, score: pass ? 1 : 0, assertion }],
+      componentResults: [{ pass, score: pass ? 1 : 0, assertion, ...component }],
     },
   };
 }
@@ -34,14 +42,53 @@ describe("parseResultFile", () => {
     expect(parsed.provider).toBe("support-fake");
   });
 
-  it("タスクと採点器ごとの合否と出力を取り出す", () => {
+  it("試行と採点器ごとに，出力，採点の結果，理由を取り出す", () => {
     const parsed = parseResultFile(
-      file([result("refund-01", "refund", true), result("refund-02", "other", false)]),
+      file([
+        result("refund-01", "refund", true, undefined, { reason: "Assertion passed" }),
+        result("refund-02", "other", false, undefined, { reason: "Expected refund" }),
+      ]),
     );
     expect(parsed.trials).toEqual([
-      { taskId: "refund-01", grader: metric, output: "refund", pass: true },
-      { taskId: "refund-02", grader: metric, output: "other", pass: false },
+      {
+        taskId: "refund-01",
+        trial: 1,
+        grader: metric,
+        output: "refund",
+        outcome: "pass",
+        reason: "Assertion passed",
+      },
+      {
+        taskId: "refund-02",
+        trial: 1,
+        grader: metric,
+        output: "other",
+        outcome: "fail",
+        reason: "Expected refund",
+      },
     ]);
+  });
+
+  it("同じタスクの試行に，現れた順に1からの番号を付ける", () => {
+    const parsed = parseResultFile(
+      file([result("a", "x", true), result("b", "x", true), result("a", "y", false)]),
+    );
+    expect(parsed.trials.map((t) => [t.taskId, t.trial])).toEqual([
+      ["a", 1],
+      ["b", 1],
+      ["a", 2],
+    ]);
+  });
+
+  it("アサーションのメタデータにあるunknownとerrorを，採点の結果として取り出す", () => {
+    const judge = { type: "javascript", metric: "judge:polite (QC01-4)" };
+    const parsed = parseResultFile(
+      file([
+        result("reply-01", "返信", false, judge, { metadata: { outcome: "unknown" } }),
+        result("reply-01", "返信", false, judge, { metadata: { outcome: "error" } }),
+      ]),
+    );
+    expect(parsed.trials.map((t) => t.outcome)).toEqual(["unknown", "error"]);
   });
 
   it("metricのない採点器は，アサーションの種類を名前にする", () => {
@@ -49,7 +96,7 @@ describe("parseResultFile", () => {
     expect(parseResultFile(file([raw])).trials[0]?.grader).toBe("equals");
   });
 
-  it("プロバイダがエラーを返した試行は，そのタスクのすべての採点器を不合格にする", () => {
+  it("プロバイダがエラーを返した試行は，そのタスクのすべての採点器をerrorにする", () => {
     const raw = {
       testCase: { description: "refund-01", assert: [{ type: "equals", metric }] },
       provider: { id: "support-ollama", label: "" },
@@ -59,7 +106,14 @@ describe("parseResultFile", () => {
       gradingResult: null,
     };
     expect(parseResultFile(file([raw])).trials).toEqual([
-      { taskId: "refund-01", grader: metric, output: "", pass: false },
+      {
+        taskId: "refund-01",
+        trial: 1,
+        grader: metric,
+        output: "",
+        outcome: "error",
+        reason: "llm error: fetch failed",
+      },
     ]);
   });
 
@@ -73,8 +127,23 @@ describe("parseResultFile", () => {
 
   it("最初の結果のメタデータから，再現のための記録を取り出す", () => {
     const metadata = { llm: "fake", model: "keyword", promptVersion: "classify-v1", seed: 1 };
-    const raw = { ...result("refund-01", "refund", true), metadata: { ...metadata, other: "x" } };
+    const raw = { ...result("refund-01", "refund", true), metadata: { ...metadata, trial: 0 } };
     expect(parseResultFile(file([raw])).metadata).toEqual(metadata);
+  });
+
+  it("結果ごとに違う記録は，現れた順に重複を除いてカンマでつなぐ", () => {
+    const classify = { llm: "fake", model: "keyword", promptVersion: "classify-v1", seed: 1 };
+    const reply = { llm: "fake", model: "template", promptVersion: "reply-v1", seed: 1 };
+    const raws = [classify, reply, classify].map((metadata) => ({
+      ...result("refund-01", "refund", true),
+      metadata,
+    }));
+    expect(parseResultFile(file(raws)).metadata).toEqual({
+      llm: "fake",
+      model: "keyword, template",
+      promptVersion: "classify-v1, reply-v1",
+      seed: 1,
+    });
   });
 
   it("メタデータがなければ，再現のための記録を空にする", () => {

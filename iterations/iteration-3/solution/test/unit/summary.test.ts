@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { EvalResult, Trial } from "../../src/promptfooResult.ts";
+import type { EvalResult, GradeOutcome, Trial } from "../../src/promptfooResult.ts";
 import { groupTrials, passHatK, summarize } from "../../src/summary.ts";
 
-// 合否の並びから，1つのタスクと採点器の試行を作る．
-const trials = (taskId: string, passes: boolean[], grader = "g"): Trial[] =>
-  passes.map((pass) => ({ taskId, grader, output: "", pass }));
+// 合否(または採点の結果)の並びから，1つのタスクと採点器の試行を作る．
+const trials = (taskId: string, results: (boolean | GradeOutcome)[], grader = "g"): Trial[] =>
+  results.map((r, index) => ({
+    taskId,
+    trial: index + 1,
+    grader,
+    output: "",
+    outcome: r === true ? "pass" : r === false ? "fail" : r,
+    reason: "",
+  }));
 
 const result = (all: Trial[]): EvalResult => ({
   suite: "support",
@@ -124,7 +131,7 @@ describe("summarize", () => {
         confidence: 0.95,
       },
     );
-    expect(summary.tasks[0]?.interval.lower).toBeCloseTo(0.3475, 4);
+    expect(summary.tasks[0]?.interval?.lower).toBeCloseTo(0.3475, 4);
   });
 
   it("採点器ごとに，タスクごとの合格率の平均，標準誤差，信頼区間を求める", () => {
@@ -161,6 +168,47 @@ describe("summarize", () => {
   it("目標を与えなければ，目標と比べない", () => {
     const summary = summarize(result([...trials("a", [true]), ...trials("b", [true])]), { k: 1 });
     expect(summary.graders[0]?.targetVerdict).toBeUndefined();
+  });
+
+  it("unknownとerrorは合格率の計算から除き，件数を数える", () => {
+    const summary = summarize(result(trials("a", [true, false, "unknown", "error"])), { k: 1 });
+    expect(summary.tasks[0]).toMatchObject({
+      passes: 1,
+      trials: 2,
+      rate: 0.5,
+      unknown: 1,
+      errors: 1,
+    });
+  });
+
+  it("判定できた試行がないタスクは，合格率と区間を求めず，状態をunjudgedにする", () => {
+    const summary = summarize(result(trials("a", ["unknown", "error"])), { k: 1 });
+    expect(summary.tasks[0]).toMatchObject({
+      rate: undefined,
+      interval: undefined,
+      status: "unjudged",
+    });
+  });
+
+  it("採点器ごとに，unknownとerrorの件数を合計する", () => {
+    const summary = summarize(
+      result([...trials("a", [true, "unknown"]), ...trials("b", ["error", "unknown"])]),
+      { k: 1 },
+    );
+    expect(summary.graders[0]).toMatchObject({ unknown: 2, errors: 1 });
+  });
+
+  it("採点器ごとの合格率は，判定できた試行のあるタスクだけで求める", () => {
+    const summary = summarize(
+      result([
+        ...trials("a", [true, true]),
+        ...trials("b", [false, false]),
+        ...trials("c", ["error"]),
+      ]),
+      { k: 1 },
+    );
+    expect(summary.graders[0]?.passAt1).toBeCloseTo(0.5);
+    expect(summary.graders[0]?.estimate?.mean).toBeCloseTo(0.5);
   });
 
   it("タスクあたりの試行数を求める", () => {

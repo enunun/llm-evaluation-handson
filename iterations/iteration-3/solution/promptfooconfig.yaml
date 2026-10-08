@@ -2,68 +2,126 @@
 description: support
 
 # プロバイダが受け取るプロンプトは，問い合わせ文そのものである．
-# 分類の指示はプロバイダが呼ぶ製品(src/support.ts)が組み立てる．
+# 分類と返信の指示は，プロバイダが呼ぶ製品(src/support.ts)が組み立てる．
+# プロバイダは，テストの変数taskで分類(classify，既定)と返信の下書き(reply)を呼び分ける．
 prompts:
   - "{{inquiry}}"
 
 providers:
   - id: file://src/supportProvider.ts
     config:
-      # fake：キーワードで分類する偽LLM．ollama：Ollamaのモデル．
+      # fake：キーワードで分類し，型どおりの返信を書く偽LLM．ollama：Ollamaのモデル．
       llm: fake
       model: qwen2.5:3b
-      # 偽LLMの乱数のシードと，キーワードによる分類と違う答えを返す確率．
+      # 偽LLMの乱数のシードと，間違った分類や欠陥のある返信を返す確率．
       seed: 1
       noise: 0.1
 
-defaultTest:
-  assert:
-    - type: equals
-      value: "{{expected}}"
-      metric: category (QC01-1)
-
 tests:
+  # 分類のタスク．採点器はYAMLのアンカー(&category)で定義し，以降のタスクは*categoryで参照する．
   - description: refund-01
     vars:
       inquiry: 先週買った靴のサイズが合わなかったので，返品して返金してほしいです．
       expected: refund
+    assert: &category
+      - type: equals
+        value: "{{expected}}"
+        metric: category (QC01-1)
   - description: refund-02
     vars:
       inquiry: 同じ注文で2回請求されています．1回分を戻してください．
       expected: refund
+    assert: *category
   - description: refund-03
     vars:
       inquiry: 届いた服の色が写真と違うので，交換してほしいです．
       expected: refund
+    assert: *category
   - description: shipping-01
     vars:
       inquiry: 注文した本がまだ届きません．いつ発送されますか．
       expected: shipping
+    assert: *category
   - description: shipping-02
     vars:
       inquiry: 配送先の住所を変更したいです．
       expected: shipping
+    assert: *category
   - description: account-01
     vars:
       inquiry: パスワードを忘れてログインできません．
       expected: account
+    assert: *category
   - description: account-02
     vars:
       inquiry: 登録したメールアドレスを変えたいです．
       expected: account
+    assert: *category
   - description: other-01
     vars:
       inquiry: 店舗の営業時間を教えてください．
       expected: other
+    assert: *category
   - description: other-02
     vars:
       inquiry: 領収書を発行してください．
       expected: other
+    assert: *category
   - description: other-03
     vars:
       inquiry: ポイントが付与されていません．
       expected: other
+    assert: *category
   - description: mixed-01
     vars:
       inquiry: 商品は届いたのですが，壊れていました．返金してもらえますか．
       expected: refund
+    assert: *category
+
+  # 返信の下書きのタスク．3種類の採点器で採点する．
+  - description: reply-01
+    vars:
+      task: reply
+      inquiry: 注文した本がまだ届きません．いつ発送されますか．
+    assert: &reply # コードの採点器：方針にない約束をしていないか．
+      - type: not-icontains
+        value: 全額返金します
+        metric: no-promise (QC02-2)
+      # LLM Judge：丁寧な言葉遣いの指示に従っているか．
+      - type: javascript
+        value: file://src/judgeAssertion.ts
+        metric: judge:polite (QC01-4)
+        config:
+          rubric: 返信が，お客様に対する丁寧な言葉遣い(敬語)で書かれているか．
+          judge:
+            llm: fake
+            model: qwen2.5:3b
+            seed: 1
+            noise: 0.1
+      # 意思決定モデル：返信が問い合わせに答えているか．
+      - type: javascript
+        value: file://src/decisionAssertion.ts
+        metric: decision:answers (QC01-1)
+        config:
+          instructions: Does the reply answer the customer's inquiry?
+          threshold: 0.5
+          model:
+            llm: fake
+            model: tev1
+            seed: 1
+            noise: 0.3
+  - description: reply-02
+    vars:
+      task: reply
+      inquiry: 先週買った靴を返品して，全額返金してほしいです．
+    assert: *reply
+  - description: reply-03
+    vars:
+      task: reply
+      inquiry: パスワードを忘れてログインできません．
+    assert: *reply
+  - description: reply-04
+    vars:
+      task: reply
+      inquiry: 店舗の営業時間を教えてください．
+    assert: *reply
