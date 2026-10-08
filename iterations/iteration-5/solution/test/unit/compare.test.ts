@@ -80,12 +80,12 @@ describe("compareRuns", () => {
     ]);
   });
 
-  it("タスクの集合が違えば，比較せずにエラーにする", () => {
+  it("タスクの集合が違えば，比較せずエラーとする", () => {
     const fewer = run({ a: [true], b: [true], c: [true] });
     expect(() => compareRuns(base, fewer, { confidence: 0.95 })).toThrow("task sets differ for g");
   });
 
-  it("採点器の設定が違えば，比較せずにエラーにする", () => {
+  it("採点器の設定が違えば，比較せずエラーとする", () => {
     const changed = run({ a: [true], b: [true], c: [true], d: [true] }, "g", '{"threshold":0.6}');
     expect(() => compareRuns(base, changed, { confidence: 0.95 })).toThrow(
       "grader settings differ for g",

@@ -47,7 +47,7 @@
 | 2 | 合格率に標準誤差と信頼区間を付け，目標と比べる | [exercise](iterations/iteration-2/exercise) | [solution](iterations/iteration-2/solution) |
 | 3 | 返信の下書きを，コードの採点器，LLM Judge，意思決定モデルで採点する | [exercise](iterations/iteration-3/exercise) | [solution](iterations/iteration-3/solution) |
 | 4 | モデル型の採点器を人手ラベルで検証し，合格率を補正する | [exercise](iterations/iteration-4/exercise) | [solution](iterations/iteration-4/solution) |
-| 5 | 2つの実行結果を比較し，回帰をゲートで止める | 作成中 | 作成中 |
+| 5 | 2つの実行結果を比較し，回帰をゲートで止める | [exercise](iterations/iteration-5/exercise) | [solution](iterations/iteration-5/solution) |
 
 各Iterationの要求と学ぶことは[ロードマップ](docs/ROADMAP.md)にある．
 

@@ -480,11 +480,13 @@ decision:answers (QC01-1)  0.95      1.00  0.33  0.85       [0.44, 1.00]
 ### 使用例
 
 ```console
-$ pnpm evalstats compare results/baseline.json results/head.json --margin 0.05
-grader                  base   head   diff    SE     95% CI           corr   MDE(80%)  verdict
-category (QC01-1)       0.79   0.86   +0.07   0.03   [+0.01, +0.13]   0.62   0.08      improved
-judge:polite (QC01-4)   0.88   0.84   -0.04   0.04   [-0.12, +0.04]   0.48   0.11      inconclusive
-gate: FAIL (judge:polite: lower bound -0.12 < -0.05)
+$ pnpm eval:gate
+grader                     tasks  base  head  diff   SE    95% CI          corr  MDE(80%)  verdict
+category (QC01-1)          11     0.65  0.54  -0.12  0.05  [-0.21, -0.02]  0.95  0.14      regressed
+no-promise (QC02-2)        4      1.00  0.95  -0.05  0.03  [-0.11, +0.01]  -     0.08      inconclusive
+judge:polite (QC01-4)      4      0.89  0.79  -0.10  0.04  [-0.18, -0.02]  0.75  0.11      regressed
+decision:answers (QC01-1)  4      0.95  0.88  -0.07  0.02  [-0.12, -0.03]  0.58  0.07      regressed
+gate: FAIL (margin 0.05; category (QC01-1): lower bound -0.21 < -0.05; no-promise (QC02-2): lower bound -0.11 < -0.05; judge:polite (QC01-4): lower bound -0.18 < -0.05; decision:answers (QC01-1): lower bound -0.12 < -0.05)
 ```
 
 ### モジュール
@@ -493,12 +495,14 @@ gate: FAIL (judge:polite: lower bound -0.12 < -0.05)
 - `stats.ts`：次の関数を加える．
   - `pairedDifference(base: number[], head: number[], confidence: number): PairedEstimate`
   - `minimumDetectableEffect(standardError: number, options: { confidence: number; power: number }): number`
+- `promptfooResult.ts`：`EvalResult`に採点器ごとの設定`graderSettings`を加える．
+- `report.ts`：`formatComparison(comparison, confidence, gate?)`を加える．
 - `cli.ts`：`compare`サブコマンドを加える．
 
 ### 設計文書の更新
 
 - `design/modules.md`：`compare`を加える．
-- `design/types.md`：`Comparison`，`PairedEstimate`，`Verdict`，`GateResult`を加える．
+- `design/types.md`：`Comparison`，`GraderComparison`，`PairedEstimate`，`Verdict`，`GateResult`を3つめの図として加え，`EvalResult`に`graderSettings`を加える．
 - `design/adr/0006-regression-gate.md`：対応のある差，非劣性マージン，`inconclusive`をゲートでどう扱うか，比較できない結果を拒む判断を記録する．
 
 ### 学ぶこと
@@ -506,14 +510,15 @@ gate: FAIL (judge:polite: lower bound -0.12 < -0.05)
 - 同じタスクで2つの版を比べる対応のある差．相関が高いほど差の標準誤差が小さくなること．
 - 検出力と最小検出差．小さな改善を主張するために必要なタスク数と試行回数．
 - 非劣性マージンと，「差がない」と「差を検出できない」の違い．
+- 同じ設定どうしのA/A比較と偽陽性．採点器が多いほど偶然の判定が増えること．
 - 能力評価と回帰評価．合格率が高くなった能力評価のタスクを回帰評価のスイートへ移すこと．
 - 終了コードによるCIへの組み込みと，基準となる結果の管理．
 
 ### 既存テストへの影響
 
-既存の出力は変わらない．`main`に`compare`サブコマンドが加わる．
+既存の出力は変わらない．`main`に`compare`サブコマンドが加わり，使い方の表示に1行増える．`EvalResult`を作るテストには`graderSettings`が要る．
 
 ### 受講者のツール操作
 
 - パッケージの`package.json`に，基準と対象を比べる`eval:gate`スクリプトを加える．
-- プロンプトの版を変えて評価し，基準と比べる．
+- `promptfooconfig.yaml`の設定(偽LLMの`noise`やシード，Ollamaのモデル)を変えて評価し，基準と比べる．

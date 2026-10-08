@@ -225,3 +225,6 @@ results/                  promptfooの結果JSON(.gitignoreで除外)
 - `eval`スクリプトに`-c promptfooconfig.yaml`があると，`pnpm eval -c labels.yaml`で2つのスイートが合わせて評価される．Iteration 4から`eval`スクリプトの`-c`を外す(promptfooは既定で`promptfooconfig.yaml`を読む)．
 - 作成時の環境では，qwen2.5:0.5bのJudgeのTNRは0.07で使えず，tev1:0.8bはdevでTPRとTNRが1.00，testでTPRが0.67だった．教材の振り返りはこの結果を使う．
 - 意思決定モデルの`/v1/systemone`はOllama 0.35以降が必要である．Tev1は英語以外で十分に試験されておらず，入力は約2,000トークンまでである．
+- Iteration 5の統合テストは`beforeAll`でpromptfooを3回動かすため，Vitestの既定の`hookTimeout`(10秒)を超える．全パッケージの`vitest.config.ts`で`hookTimeout`を120秒にしている．
+- 書き換えたpromptfooの設定ファイルを一時ディレクトリに置くと，`file://src/...`のパスが解決できない．統合テストでは，パッケージの中に`.<名前>.tmp.yaml`として書き，評価のあとで消す．`noise: 0.1`はプロバイダとJudgeの両方にあるため，インデントまで含めた正規表現で書き換える行を選ぶ．
+- 作成時の環境では，qwen2.5:0.5bの同じ設定の2回の評価を比べると，`category`が`improved`(区間の下限0.003)になった．A/A比較の偽陽性の例として教材の振り返りで使う．
