@@ -1,6 +1,7 @@
 # 型
 
 製品側の型(`Llm`，`Category`，`Random`)，採点器の型(`JudgeVerdict`，`DecisionModel`)と，`evalstats`が結果JSONから作る型を示す．
+採点器の検証の型(`CalibrationResult`など)は，2つめの図に示す．
 `evalstats`は，試行(`Trial`)をタスクと採点器ごとにまとめ(`TaskTrials`)，タスクごとの集計(`TaskSummary`)と採点器ごとの集計(`GraderSummary`)を作る．
 集計は，区間(`Interval`)と，平均の標準誤差と区間(`Estimate`)を持つ．
 
@@ -17,6 +18,7 @@ classDiagram
   class JudgeVerdict {
     +outcome: GradeOutcome
     +reason: string
+    +probability?: number
   }
   class DecisionModel {
     <<interface>>
@@ -44,6 +46,12 @@ classDiagram
     +provider: string
     +metadata: RunMetadata
     +trials: Trial[]
+    +labels: TaskLabel[]
+  }
+  class TaskLabel {
+    +taskId: string
+    +split: string
+    +human: Record~string, HumanLabel~
   }
   class RunMetadata {
     +llm?: string
@@ -119,12 +127,23 @@ classDiagram
     +target?: number
     +tasks: TaskSummary[]
     +graders: GraderSummary[]
+    +corrections?: Correction[]
+    +calibrationSplit?: string
+  }
+  class Correction {
+    +grader: string
+    +observed: number
+    +tpr: number
+    +tnr: number
+    +corrected: number
+    +interval: Interval
   }
   Llm ..> LlmRequest
   JudgeVerdict ..> GradeOutcome
   Trial ..> GradeOutcome
   EvalResult *-- RunMetadata
   EvalResult "1" *-- "*" Trial
+  EvalResult "1" *-- "*" TaskLabel
   TaskTrials "1" o-- "*" Trial
   TaskSummary ..> Status
   TaskSummary *-- Interval
@@ -134,6 +153,7 @@ classDiagram
   Summary *-- RunMetadata
   Summary "1" *-- "*" TaskSummary
   Summary "1" *-- "*" GraderSummary
+  Summary "1" *-- "*" Correction
 ```
 
 - `classifyInquiry`は`Category`か`"invalid"`を返す．`"invalid"`は，LLMの出力がどのカテゴリにも当たらなかったことを表す．
@@ -143,3 +163,56 @@ classDiagram
 - `RunMetadata`は，プロバイダが出力のメタデータに残した記録である．結果ごとに違う値は，重複を除いてカンマでつなぐ．`seed`は偽LLMを使ったときだけ記録される．
 - `TaskSummary`の`interval`は，そのタスクの合格する確率の信頼区間(Clopper-Pearson法)である．
 - `GraderSummary`の`passAt1`はタスクごとの合格率の平均，`estimate`はその標準誤差と信頼区間，`passHatK`はタスクごとのpass^kの推定値の平均である．タスクが1つしかなければ`estimate`は`undefined`になる．目標を与えたときだけ`targetVerdict`を持つ．試行数が`k`より少ないタスクがあれば，`passHatK`は`undefined`になる．
+
+採点器の検証では，人の判定を持つ採点器ごとに，混同行列と率を求める．
+
+```mermaid
+classDiagram
+  class HumanLabel {
+    <<enumeration>>
+    pass
+    fail
+  }
+  class ConfusionMatrix {
+    +pass: Record~GradeOutcome, number~
+    +fail: Record~GradeOutcome, number~
+  }
+  class GraderRates {
+    +tpr: number | undefined
+    +tnr: number | undefined
+    +positives: number
+    +negatives: number
+  }
+  class ThresholdRates {
+    +threshold: number
+    +tpr: number
+    +tnr: number
+  }
+  class GraderCalibration {
+    +grader: string
+    +items: number
+    +matrix: ConfusionMatrix
+    +rates: GraderRates
+    +selfConsistency: number
+    +usable: boolean
+    +sweep?: ThresholdRates[]
+  }
+  class CalibrationResult {
+    +split: string | undefined
+    +graders: GraderCalibration[]
+  }
+  class CalibrationFile {
+    +split: string | undefined
+    +graders: Record~string, GraderRates~
+  }
+  CalibrationResult "1" *-- "*" GraderCalibration
+  GraderCalibration *-- ConfusionMatrix
+  GraderCalibration *-- GraderRates
+  GraderCalibration "1" *-- "*" ThresholdRates
+  CalibrationFile "1" *-- "*" GraderRates
+  ConfusionMatrix ..> HumanLabel
+```
+
+- `ConfusionMatrix`の行は人の判定，列は採点の結果(`GradeOutcome`)である．
+- `GraderRates`の`tpr`と`tnr`は，判定できた(`pass`か`fail`の)試行だけで求める．`positives`と`negatives`は，人が合格，不合格とした試行のうち判定できた数であり，補正の区間のブートストラップに使う．
+- `CalibrationFile`は，`evalstats calibrate --out`で保存し，`evalstats summary --calibration`で読む検証結果である．

@@ -397,47 +397,54 @@ trial 1
 
 ### 要求
 
-- 人手ラベルのスイート`labels.yaml`は，問い合わせ文，返信，人の判定(`human: pass | fail`)，分割(`split: dev | test`)を変数に持つタスクの集まりである．promptfooの`echo`プロバイダで返信をそのまま出力とし，`judge:polite`と`decision:answers`で採点する．
+- 人手ラベルのスイート`labels.yaml`は，問い合わせ文と返信を変数に，採点器ごとの人の判定(`human`)と分割(`split: dev | test`)をテストのメタデータに持つ．返信をそのまま出力にするプロバイダ`labelProvider`を使い，`judge:polite`と`decision:answers`で採点する．
 - `evalstats calibrate <結果JSON> [--split dev|test]`は，採点器ごとに人の判定と比べ，次のものを表示する．
-  - 混同行列(`unknown`の列を含む)
-  - TPR(人が合格としたものを採点器も合格とした割合)とTNR(人が不合格としたものを採点器も不合格とした割合)
+  - 混同行列(`unknown`と`error`の列を含む)
+  - TPR(人が合格としたものを採点器も合格とした割合)とTNR(人が不合格としたものを採点器も不合格とした割合)．どちらも判定できた試行だけで求める
   - 自己一貫性(全試行の判定がそろった項目の割合)
 - 合格基準(TPR ≥ 0.80かつTNR ≥ 0.80)を満たすかを表示し，どれかの採点器が満たさなければ終了コード1を返す．`--out`で検証結果をJSONに保存する．
-- 意思決定モデルについては，しきい値ごとのTPRとTNRを表示し，devでしきい値を選べるようにする．
-- `evalstats summary --calibration <ファイル>`は，検証済みの採点器について，観測した合格率をRogan-Gladen法`(観測した合格率 + TNR − 1) / (TPR + TNR − 1)`で補正した値と，ブートストラップによる区間を併せて表示する．補正値は0から1の範囲に収める．
+- 確率を残す採点器(意思決定モデル)については，しきい値ごとのTPRとTNRを表示し，devでしきい値を選べるようにする．
+- `evalstats summary --calibration <ファイル>`は，検証した採点器について，観測した合格率をRogan-Gladen法`(観測した合格率 + TNR − 1) / (TPR + TNR − 1)`で補正した値と，ブートストラップによる区間を併せて表示する．補正値は0から1の範囲に収める．ブートストラップの乱数は`--seed`で固定する．
 
 ### 使用例
 
 ```console
 $ pnpm eval -c labels.yaml --repeat 5 -o results/labels.json
-$ pnpm evalstats calibrate results/labels.json --split dev
-grader             items  split  TPR    TNR    self-consistency  verdict
-judge:polite       20     dev    0.92   0.88   0.75              usable
-decision:answers   20     dev    0.85   0.70   1.00              not usable (TNR < 0.80)
+$ pnpm evalstats calibrate results/labels.json --split dev --out results/calibration.json
+calibration (split: dev, items: 10)
+grader                     items  TPR   TNR   self-consistency  verdict
+judge:polite (QC01-4)      10     0.88  1.00  0.50              usable
+decision:answers (QC01-1)  10     1.00  0.33  1.00              not usable (TNR < 0.80)
 
-decision:answers thresholds
-threshold  TPR    TNR
-0.3        0.95   0.55
-0.5        0.85   0.70
-0.7        0.80   0.85
+judge:polite (QC01-4)
+            pass  fail  unknown  error
+human:pass  28    4     2        1
+human:fail  0     13    1        1
+...
+
+$ pnpm evalstats summary results/fake.json --calibration results/calibration.json
+...
+
+corrected with calibration (split: dev)
+grader                     observed  TPR   TNR   corrected  95% CI
+judge:polite (QC01-4)      0.89      0.88  1.00  1.00       [0.87, 1.00]
+decision:answers (QC01-1)  0.95      1.00  0.33  0.85       [0.44, 1.00]
 ```
 
 ### モジュール
 
-- `labels.ts`：結果JSONから人の判定と分割を取り出す．
-- `agreement.ts`
-  - `confusionMatrix(pairs: LabeledGrade[]): ConfusionMatrix`
-  - `rates(matrix: ConfusionMatrix): GraderRates`
-  - `selfConsistency(grades: GradeOutcome[][]): number`
-  - `thresholdSweep(pairs: LabeledScore[], thresholds: number[]): ThresholdRates[]`
-- `calibration.ts`：`calibrate(result: EvalResult, options): CalibrationResult`，`correctPassRate(observed: number, rates: GraderRates): number`．
-- `stats.ts`：`bootstrapInterval(statistic: (random: Random) => number, options: { resamples: number; confidence: number; random: Random }): Interval`を加える．
-- `cli.ts`：`calibrate`サブコマンドと`--calibration`を加える．
+- `labelProvider.ts`：返信をそのまま出力にするpromptfooのカスタムプロバイダ．
+- `promptfooResult.ts`：テストのメタデータから人の判定と分割(`TaskLabel`)を，採点器のメタデータから確率を取り出す．
+- `agreement.ts`：`confusionMatrix(pairs)`，`rates(matrix)`，`selfConsistency(items)`，`thresholdSweep(pairs, thresholds)`．
+- `calibration.ts`：`calibrate(result, { split })`，`correctPassRate(observed, rates)`，`correctedEstimate(taskRates, rates, options)`，検証結果のファイルの保存と読み込み．
+- `stats.ts`：`bootstrapInterval(statistic, { resamples, confidence, random })`を加える．
+- `summary.ts`，`report.ts`：補正の表と，検証結果の表示`formatCalibration(result)`を加える．
+- `cli.ts`：`calibrate`サブコマンド，`--calibration`，`--seed`を加え，`CliIo`に`writeFile`を加える．
 
 ### 設計文書の更新
 
 - `design/modules.md`：`labels`，`agreement`，`calibration`を加える．
-- `design/types.md`：`ConfusionMatrix`，`GraderRates`，`CalibrationResult`を加える．
+- `design/types.md`：`TaskLabel`と`Correction`を加え，検証の型(`ConfusionMatrix`，`GraderRates`，`CalibrationResult`など)を2つめの図に描く．
 - `design/adr/0005-grader-validation.md`：モデル型の採点器を，使う前に人手ラベルで検証する判断を記録する．devで改善し，最後にtestを使って確かめる手順，合格基準の値，補正を表示に加える判断も書く．LLM Judgeと意思決定モデルの検証結果の比較も書く．
 
 ### 学ぶこと
@@ -451,11 +458,13 @@ threshold  TPR    TNR
 
 ### 既存テストへの影響
 
-`main`のサブコマンドの振り分けが変わるため，引数の誤りを確かめる統合テストの期待値が変わる．
+- 評価結果がラベルを持つため，`summary`のテストで作る評価結果を書き換える．
+- `CliIo`に`writeFile`が加わるため，統合テストの`CliIo`を書き換える．
+- 使い方の表示に`calibrate`が加わるため，引数の誤りの統合テストの期待値が変わる．
 
 ### 受講者のツール操作
 
-- promptfooで別のスイートファイルを指定して実行する．
+- `package.json`の`eval`スクリプトから`-c promptfooconfig.yaml`を外し，`pnpm eval -c labels.yaml`で別のスイートを評価する．
 - 人手ラベルに自分でラベルを数件加え，devで検証をやり直す．
 
 ## Iteration 5：比較して回帰を止める

@@ -9,6 +9,7 @@ flowchart LR
   ollamaClient["ollama(npm)"]:::external
   ollamaServer[(Ollamaのモデル)]:::external
   resultFile[(結果JSON)]:::external
+  calibrationFile[(検証結果JSON)]:::external
   stdlibMt19937["@stdlib/random-base-mt19937"]:::external
   stdlibBinomial["@stdlib/stats-binomial-test"]:::external
   stdlibNormal["@stdlib/stats-base-dists-normal-quantile"]:::external
@@ -16,6 +17,7 @@ flowchart LR
 
   subgraph product[製品とプロバイダ]
     supportProvider
+    labelProvider
     support
     llm
     fakeLlm
@@ -36,9 +38,12 @@ flowchart LR
     summary
     stats
     report
+    agreement
+    calibration
   end
 
   promptfoo --> supportProvider
+  promptfoo --> labelProvider
   promptfoo --> judgeAssertion
   promptfoo --> decisionAssertion
   promptfoo --> resultFile
@@ -69,6 +74,18 @@ flowchart LR
   cli --> summary
   cli --> report
   cli --> resultFile
+  cli --> calibration
+  cli --> random
+  cli --> calibrationFile
+  calibration --> agreement
+  calibration --> promptfooResult
+  calibration --> random
+  calibration --> stats
+  agreement --> promptfooResult
+  summary --> calibration
+  summary --> random
+  report --> calibration
+  stats --> random
   summary --> promptfooResult
   summary --> stats
   report --> summary
@@ -87,4 +104,6 @@ flowchart LR
 - `evalstats`は製品のモジュールをimportしない．promptfooの結果JSONだけを通して製品の評価結果を受け取る．
 - 採点器のモジュールは，製品のLLMのポート(`llm`)と偽LLM(`fakeLlm`)を共有する．LLM Judgeは`judge`を，意思決定モデルは`decisionModel`のポートを通して呼ぶ．
 - `decisionModel`のOllamaの実装は，`ollama(npm)`ではなく`fetch`で`/v1/systemone`を直接呼ぶ．
+- `labelProvider`は，人手ラベルのスイート(`labels.yaml`)で返信をそのまま出力にし，採点器だけを動かす．
+- `calibration`は，人の判定と採点器の結果を`agreement`で比べ，検証結果JSONに保存する．`summary`は検証結果を受け取り，合格率を補正する．
 - 統計の計算は`stats`に集める．`summary`は区間と標準誤差を求めるために，`report`は区間の型を使うために`stats`をimportする．

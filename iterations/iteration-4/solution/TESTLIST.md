@@ -113,7 +113,37 @@
 - [x] `parseResultFile`は，最初の結果のメタデータから，再現のための記録を取り出す
 - [x] 結果ごとに違う記録は，現れた順に重複を除いてカンマでつなぐ
 - [x] `parseResultFile`は，メタデータがなければ，再現のための記録を空にする
+- [x] `parseResultFile`は，アサーションのメタデータにある確率を，試行に残す
+- [x] `parseResultFile`は，テストのメタデータにある人の判定と分割を，タスクのラベルとして取り出す
+- [x] `parseResultFile`は，人の判定のないタスクはラベルに含めない
 - [x] `parseResultFile`は，`promptfoo`の結果JSONの形でなければエラーにする
+
+### agreement
+
+- [x] `confusionMatrix`は，人の判定と採点の結果の組を数える
+- [x] TPRは，人が合格とした試行のうち，採点器も合格とした割合である`(unknown`と`error`を除く)
+- [x] TNRは，人が不合格とした試行のうち，採点器も不合格とした割合である`(unknown`と`error`を除く)
+- [x] `rates`は，判定できた試行の数を，人の判定ごとに数える
+- [x] `rates`は，人が合格とした試行がなければ，TPRを求めない
+- [x] `selfConsistency`は，すべての試行で採点の結果がそろった項目の割合である
+- [x] `selfConsistency`は，項目がなければ0である
+- [x] `thresholdSweep`は，しきい値ごとに，確率がしきい値以上を合格としたときのTPRとTNRを求める
+
+### calibration
+
+- [x] `calibrate`は，人の判定がある採点器ごとに，混同行列とTPR，TNRを求める
+- [x] `calibrate`は，項目ごとの自己一貫性を求める
+- [x] `calibrate`は，TPRとTNRがどちらも0.8以上なら使える`(usable)`とする
+- [x] `calibrate`は，分割を指定すると，その分割の項目だけで検証する
+- [x] 確率を残した採点器には，しきい値ごとのTPRとTNRを求める
+- [x] `correctPassRate`は，観測した合格率を，Rogan-Gladen法で補正する
+- [x] `correctPassRate`は，補正した値を0から1の範囲に収める
+- [x] `correctPassRate`は，TPR + TNRが1以下なら補正できない
+- [x] `correctedEstimate`は，タスクごとの合格率の平均を補正した値と，ブートストラップによる区間を返す
+- [x] `correctedEstimate`は，同じ乱数のシードなら同じ区間を返す
+- [x] `correctedEstimate`は，TPRかTNRが求まっていなければ補正しない
+- [x] `検証結果のファイル`は，採点器ごとのTPR，TNR，判定できた試行の数を保存し，読み戻せる
+- [x] `検証結果のファイル`は，検証結果の形でなければエラーにする
 
 ### stats
 
@@ -131,6 +161,10 @@
 - [x] `judgeTarget`は，区間の下限が目標以上なら`met`である
 - [x] `judgeTarget`は，区間の上限が目標より小さければ`not met`である
 - [x] `judgeTarget`は，区間が目標をまたげば`inconclusive`である
+- [x] `bootstrapInterval`は，統計量を何度も計算し，その分布の分位点を区間にする
+- [x] 統計量が`undefined`を返した回は除く
+- [x] `bootstrapInterval`は，統計量が一度も値を返さなければエラーにする
+- [x] `bootstrapInterval`は，統計量に乱数を渡す
 
 ### summary
 
@@ -157,6 +191,8 @@
 - [x] 判定できた試行がないタスクは，合格率と区間を求めず，状態を`unjudged`にする
 - [x] `summarize`は，採点器ごとに，`unknown`と`error`の件数を合計する
 - [x] 採点器ごとの合格率は，判定できた試行のあるタスクだけで求める
+- [x] `summarize`は，検証結果を与えると，検証した採点器の合格率を補正する
+- [x] `summarize`は，検証結果にない採点器は補正しない
 - [x] `summarize`は，タスクあたりの試行数を求める
 
 ### report
@@ -168,10 +204,23 @@
 - [x] `formatSummary`は，信頼水準を列の名前に表示する
 - [x] `formatSummary`は，標準誤差とpass^kを求めていなければ-を表示する
 - [x] 目標を与えたときは，目標との比較の列を加える
+- [x] 補正を求めたときは，空行のあとに補正の表を表示する
 - [x] 判定できた試行がないタスクは，合格率と区間を-と表示する
 - [x] `formatTranscripts`は，タスクの試行ごとに，出力と，採点器ごとの結果と理由を表示する
 - [x] `formatTranscripts`は，出力の改行は空白に置き換えて1行で表示する
 - [x] `formatTranscripts`は，タスクの試行がなければエラーにする
+- [x] `formatCalibration`は，1行目に，分割と項目の数を表示する
+- [x] `formatCalibration`は，採点器ごとに，TPR，TNR，自己一貫性，使えるかの判定を表示する
+- [x] `formatCalibration`は，採点器ごとに，人の判定と採点の結果の混同行列を表示する
+- [x] 確率を残した採点器には，しきい値ごとのTPRとTNRを表示する
+- [x] `formatCalibration`は，TPRやTNRが求まっていなければ-を表示する
+
+### labelProvider
+
+- [x] `LabelProvider`は，変数`reply`の返信をそのまま出力にする
+- [x] `LabelProvider`は，試行の番号をメタデータに記録する
+- [x] `LabelProvider`は，変数`reply`がなければエラーとして返す
+- [x] `LabelProvider`は，IDは`labels`である
 
 ## 統合テスト
 
@@ -181,6 +230,9 @@
 - [x] `--k`で，pass^kの`k`を変える
 - [x] `--confidence`で，信頼区間の水準を変える
 - [x] `--target`で，採点器ごとに信頼区間と目標を比べる
+- [x] 人手ラベルのスイートの評価結果から，分割ごとに採点器を検証して表示する
+- [x] `--out`で保存した検証結果を，`summary`の`--calibration`で使い，合格率を補正する
+- [x] 人の判定のない評価結果なら，理由を表示して終了コード1を返す
 - [x] サブコマンドがなければ使い方を表示し，終了コード2を返す
 - [x] 未知のサブコマンドには使い方を表示し，終了コード2を返す
 - [x] `--k`が1以上の整数でなければ使い方を表示し，終了コード2を返す
@@ -189,10 +241,7 @@
 
 ## 既存のテストの変更
 
-- [x] `supportProvider`のメタデータのテストに，試行の番号`trial`を加える
-- [x] `promptfooResult`の試行のテストを，`pass`から`outcome`，`trial`，`reason`を持つ形に変える
-- [x] `promptfooResult`の「プロバイダがエラーを返した試行」を，不合格から`error`に変える
-- [x] `summary`のテストで作る試行を，`outcome`を持つ形に変える
-- [x] `report`の採点器の表のテストに，`unknown`と`error`の列を加える
-- [x] 統合テストの期待する表示に，返信のタスクと採点器を加える
-- [x] 統合テストの使い方の表示に，`show`を加える
+- [x] `summary`のテストで作る評価結果に，空のラベル`labels: []`を加える
+- [x] 統合テストの`CliIo`に`writeFile`を加える
+- [x] 統合テストでpromptfooを動かす関数が，スイートのファイルと試行の数を受け取るようにする
+- [x] 統合テストの使い方の表示に，`calibrate`を加える

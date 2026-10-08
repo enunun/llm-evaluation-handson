@@ -222,4 +222,6 @@ results/                  promptfooの結果JSON(.gitignoreで除外)
 - `simple-statistics` 7.12.1は公開から2週間たっていないため，7.12.0を使う．
 - promptfooのカスタムアサーション(`type: javascript`)は，`context.config`でアサーションの`config`を，`context.metadata`でプロバイダの応答の`metadata`を受け取る．試行の番号は渡されないため，プロバイダがメタデータの`trial`に記録する．返した`metadata`は，結果JSONの`componentResults[].metadata`に入る．
 - 自由記述の評価に使う軽量なモデル(qwen2.5:0.5b)は，問い合わせに答えず方針を書き写すことが多い．教材の振り返りでは，この誤りをトランスクリプトで見せる．
+- `eval`スクリプトに`-c promptfooconfig.yaml`があると，`pnpm eval -c labels.yaml`で2つのスイートが合わせて評価される．Iteration 4から`eval`スクリプトの`-c`を外す(promptfooは既定で`promptfooconfig.yaml`を読む)．
+- 作成時の環境では，qwen2.5:0.5bのJudgeのTNRは0.07で使えず，tev1:0.8bはdevでTPRとTNRが1.00，testでTPRが0.67だった．教材の振り返りはこの結果を使う．
 - 意思決定モデルの`/v1/systemone`はOllama 0.35以降が必要である．Tev1は英語以外で十分に試験されておらず，入力は約2,000トークンまでである．
