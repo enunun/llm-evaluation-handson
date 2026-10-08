@@ -28,6 +28,18 @@ describe("SupportProvider", () => {
     });
   });
 
+  it("Ollamaを使うときは，使わないシードを記録しない", async () => {
+    const provider = new SupportProvider({
+      config: { llm: "ollama", host: "http://127.0.0.1:9", model: "qwen2.5:0.5b", seed: 7 },
+    });
+    const response = await provider.callApi("本がまだ届きません", trial(0));
+    expect(response.metadata).toEqual({
+      llm: "ollama",
+      model: "qwen2.5:0.5b",
+      promptVersion: "classify-v1",
+    });
+  });
+
   it("同じシード，問い合わせ，試行の番号なら，同じ出力を返す", async () => {
     const first = new SupportProvider({ config: { llm: "fake", seed: 1, noise: 0.5 } });
     const second = new SupportProvider({ config: { llm: "fake", seed: 1, noise: 0.5 } });

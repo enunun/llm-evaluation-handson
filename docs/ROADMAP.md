@@ -184,9 +184,9 @@ passed: 8/11 (0.73)
 
 ### 要求
 
-- `pnpm eval --repeat <n>`で，各タスクをn回試行する．
+- `pnpm eval --repeat <n>`で，各タスクを`n`回試行する．
 - 偽LLMは，プロバイダの設定`seed`と`noise`を受け取る．確率`noise`でキーワード分類と異なるカテゴリや，カテゴリでない文字列を返す．同じシードでは同じ結果になる．
-- プロバイダは，出力のメタデータにLLMの種類，モデル名，プロンプトの版，シードを記録する．
+- プロバイダは，出力のメタデータにLLMの種類，モデル名，プロンプトの版を記録する．偽LLMのときはシードも記録する．
 - `evalstats summary`は，同じタスクの試行をまとめ，タスクと採点器ごとに合格数，試行数，合格率を表示する．
 - タスクを3つに分類して表示する．全試行で合格なら`stable`，全試行で不合格なら`broken`，合否が揺れれば`flaky`である．
 - 採点器ごとに，タスクごとの合格率の平均(pass@1)と，pass^kを表示する．`k`は`--k`で指定し，既定は3である．pass^kは，タスクごとの合格数と試行数から`C(合格数, k) / C(試行数, k)`で推定し，タスクについて平均する．
@@ -196,27 +196,31 @@ passed: 8/11 (0.73)
 ```console
 $ pnpm eval --repeat 10 -o results/fake.json
 $ pnpm evalstats summary results/fake.json
-suite: support (provider: support-fake, trials: 10, seed: 1)
-task          grader              pass   rate  status
-refund-01     category (QC01-1)   9/10   0.90  flaky
-shipping-01   category (QC01-1)  10/10   1.00  stable
-mixed-01      category (QC01-1)   0/10   0.00  broken
+suite: support (provider: support-fake, model: keyword, prompt: classify-v1, trials: 10, seed: 1)
+task         grader             pass   rate  status
+refund-01    category (QC01-1)  8/10   0.80  flaky
+refund-02    category (QC01-1)  0/10   0.00  broken
 ...
-grader              pass@1  pass^3  stable  flaky  broken
-category (QC01-1)   0.79    0.55    3       4      1
+shipping-01  category (QC01-1)  10/10  1.00  stable
+...
+
+grader             pass@1  pass^3  stable  flaky  broken
+category (QC01-1)  0.65    0.53    3       5      3
 ```
 
 ### モジュール
 
-- `random.ts`：`seededRandom(seed: number): Random`．`@stdlib/random-base-mt19937`を包む．
+- `random.ts`：`seededRandom(seed: number): Random`は`@stdlib/random-base-mt19937`を包む．`trialSeed(seed: number, key: string, index: number): number`は試行ごとのシードを作る．
 - `fakeLlm.ts`：`keywordLlm(options: { random: Random; noise: number }): Llm`に変える．
+- `support.ts`：`classificationPromptVersion`を加える．
+- `promptfooResult.ts`：`RunMetadata`を加える．
 - `summary.ts`：次の関数を加え，`Summary`がタスクごとの集計と採点器ごとの集計を持つようにする．
   - `groupTrials(result: EvalResult): TaskTrials[]`
   - `passHatK(passes: number, trials: number, k: number): number`
 
 ### リファクタリング
 
-`report.ts`にある合否の数え上げを`summary.ts`へ移し，`report.ts`は表示だけを受け持つようにする．
+`TaskOutcome`を`Trial`に，`EvalResult.outcomes`を`EvalResult.trials`に改める．1つの値が「1回の試行を1つの採点器で採点した結果」を表すことを名前に出す．
 
 ### 設計文書の更新
 
@@ -233,8 +237,10 @@ category (QC01-1)   0.79    0.55    3       4      1
 
 ### 既存テストへの影響
 
-- 表示の列が変わるため，`report`の単体テストと統合テストの期待する出力が変わる．
+- 「合格したタスクの数と割合」が採点器ごとの集計に置き換わるため，`summary`と`report`の単体テストを書き換える．
+- 表示が変わるため，統合テストの期待する出力が変わる．
 - `keywordLlm`の引数が変わるため，偽LLMのテストを書き換える．
+- `outcomes`が`trials`に変わるため，`promptfooResult`のテストを書き換える．
 
 ### 受講者のツール操作
 

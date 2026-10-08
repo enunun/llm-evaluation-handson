@@ -47,12 +47,15 @@ export default class SupportProvider implements ApiProvider {
   }
 
   async callApi(prompt: string, context?: CallApiContextParams): Promise<ProviderResponse> {
-    const metadata = {
-      llm: this.settings.llm,
-      model: this.ollama ? this.settings.model : "keyword",
-      promptVersion: classificationPromptVersion,
-      seed: this.settings.seed,
-    };
+    // 結果を再現するための記録．シードは偽LLMだけが使う．
+    const metadata = this.ollama
+      ? { llm: "ollama", model: this.settings.model, promptVersion: classificationPromptVersion }
+      : {
+          llm: "fake",
+          model: "keyword",
+          promptVersion: classificationPromptVersion,
+          seed: this.settings.seed,
+        };
     try {
       const llm = this.ollama ?? this.fakeLlm(prompt, context?.repeatIndex ?? 0);
       return { output: await classifyInquiry(llm, prompt), metadata };

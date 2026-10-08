@@ -214,4 +214,8 @@ results/                  promptfooの結果JSON(.gitignoreで除外)
 - oxfmtはYAMLとJSONCの引用符をそろえる．テンプレート由来の設定ファイル(`.textlintrc.yml`など)は`.oxfmtrc.json`の`ignorePatterns`で外している．
 - TypeScript 7には`typescript/lib`がないため，VS Codeでは`typescriptteam.native-preview`拡張を使う．
 - Dockerを使えない環境で教材の出力を取るときは，Ollama 0.35.1のLinux版(`ollama-linux-amd64.tar.zst`)を展開し，`ollama serve`を直接起動する．
+- `@stdlib/random-base-mt19937`の型定義では，`factory`の戻り値に`normalized`がない．`generator() / (generator.MAX + 1)`で0以上1未満にする．
+- promptfooは試行の番号を`callApi`の第2引数の`repeatIndex`で渡す．偽LLMは，シード，問い合わせ文，試行の番号から試行ごとのシードを作る．
+- カスタムプロバイダが`private config`を持つと，`ApiProvider`の`config`と型が衝突する．自分の設定は`settings`などの名前にする．
+- Ollamaの動作確認は，軽量なモデル(`qwen2.5:0.5b`，`tev1:0.8b`)で行ってよい．教材に載せるOllamaの出力には，使ったモデルを書く．
 - 意思決定モデルの`/v1/systemone`はOllama 0.35以降が必要である．Tev1は英語以外で十分に試験されておらず，入力は約2,000トークンまでである．
